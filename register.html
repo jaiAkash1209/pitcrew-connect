@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PitCrew Connect | Register</title>
+  <meta
+    name="description"
+    content="Create a user account for PitCrew Connect."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-shell">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">PC</span>
+        <span>PitCrew Connect</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">Home</a>
+        <a href="login.html">Login</a>
+      </nav>
+      <a class="nav-cta" href="login.html">Back to login</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero inner-hero">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Register</p>
+          <h1>Create a user account</h1>
+          <p>
+            User accounts are stored in the platform database and can then access the user dashboard.
+          </p>
+        </div>
+
+        <form class="request-form login-form centered-form" id="registerForm">
+          <label class="full-width">
+            Full name
+            <input type="text" name="name" placeholder="Enter your full name" required>
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" placeholder="Enter your email" required>
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" placeholder="Create a password" required>
+          </label>
+          <button type="submit" class="button button-primary full-width">Create account</button>
+          <p class="form-message" id="registerMessage" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div>
+        <a class="brand footer-brand" href="index.html">
+          <span class="brand-mark">PC</span>
+          <span>PitCrew Connect</span>
+        </a>
+        <p>User account registration.</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="login.html">Login</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

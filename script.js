@@ -12,13 +12,17 @@ const adminStatus = document.getElementById("adminStatus");
 const refreshAdminButton = document.getElementById("refreshAdminButton");
 const loginForm = document.getElementById("loginForm");
 const loginMessage = document.getElementById("loginMessage");
+const registerForm = document.getElementById("registerForm");
+const registerMessage = document.getElementById("registerMessage");
 const selectedRoleInput = document.getElementById("selectedRole");
 const roleCards = document.querySelectorAll("[data-role-card]");
 const dashboardWelcome = document.getElementById("dashboardWelcome");
 const logoutLinks = document.querySelectorAll(".logout-link");
 const dashboardRole = document.body?.dataset?.dashboardRole || "";
+const usersList = document.getElementById("usersList");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
+const THEME_STORAGE_KEY = "pitcrew_theme";
 
 function setAuth(auth) {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
@@ -47,6 +51,45 @@ function getDashboardPath(role) {
   }
 
   return "user.html";
+}
+
+function getTheme() {
+  return window.localStorage.getItem(THEME_STORAGE_KEY) || "light";
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle("theme-dark", theme === "dark");
+}
+
+function toggleTheme() {
+  const nextTheme = getTheme() === "dark" ? "light" : "dark";
+  window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  applyTheme(nextTheme);
+}
+
+function ensureThemeToggle() {
+  const navShell = document.querySelector(".nav-shell");
+  if (!navShell) {
+    return;
+  }
+
+  const existing = navShell.querySelector(".theme-toggle");
+  if (existing) {
+    return;
+  }
+
+  const navCta = navShell.querySelector(".nav-cta");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "button button-secondary theme-toggle";
+  button.textContent = "Night Mode";
+  button.addEventListener("click", toggleTheme);
+
+  if (navCta) {
+    navShell.insertBefore(button, navCta);
+  } else {
+    navShell.appendChild(button);
+  }
 }
 
 function applyRoleSelection(role) {
@@ -130,6 +173,19 @@ function renderCards(listElement, records, type) {
         `;
       }
 
+      if (type === "users") {
+        return `
+          <article class="admin-card">
+            <h3>${escapeHtml(record.name || "Unnamed user")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.role || "No role")}</span>
+              <span>${escapeHtml(record.email || "No email")}</span>
+            </div>
+            <p><strong>Created:</strong> ${escapeHtml(record.createdAt || "-")}</p>
+          </article>
+        `;
+      }
+
       return `
         <article class="admin-card">
           <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
@@ -148,34 +204,40 @@ function renderCards(listElement, records, type) {
 }
 
 async function loadAdminData() {
-  if (!bookingsList || !mechanicsList || !adminStatus) {
+  if (!bookingsList || !mechanicsList || !adminStatus || !usersList) {
     return;
   }
 
   adminStatus.textContent = "Refreshing dashboard...";
 
   try {
-    const [bookingsResponse, mechanicsResponse] = await Promise.all([
+    const [bookingsResponse, mechanicsResponse, usersResponse] = await Promise.all([
       fetch("/api/bookings"),
-      fetch("/api/mechanics")
+      fetch("/api/mechanics"),
+      fetch("/api/users")
     ]);
 
-    if (!bookingsResponse.ok || !mechanicsResponse.ok) {
+    if (!bookingsResponse.ok || !mechanicsResponse.ok || !usersResponse.ok) {
       throw new Error("Dashboard fetch failed");
     }
 
-    const [bookings, mechanics] = await Promise.all([
+    const [bookings, mechanics, users] = await Promise.all([
       bookingsResponse.json(),
-      mechanicsResponse.json()
+      mechanicsResponse.json(),
+      usersResponse.json()
     ]);
 
     renderCards(bookingsList, Array.isArray(bookings) ? bookings : [], "bookings");
     renderCards(mechanicsList, Array.isArray(mechanics) ? mechanics : [], "mechanics");
+    renderCards(usersList, Array.isArray(users) ? users : [], "users");
     adminStatus.textContent = "Dashboard updated.";
   } catch (error) {
     adminStatus.textContent = "Could not load admin data right now.";
   }
 }
+
+applyTheme(getTheme());
+ensureThemeToggle();
 
 function requireDashboardAccess(requiredRole) {
   if (!requiredRole) {
@@ -249,7 +311,7 @@ if (dashboardRole) {
   requireDashboardAccess(dashboardRole);
 }
 
-if (dashboardRole === "admin" && bookingsList && mechanicsList) {
+if (dashboardRole === "admin" && bookingsList && mechanicsList && usersList) {
   loadAdminData();
 }
 
@@ -291,6 +353,39 @@ if (loginForm && loginMessage) {
     } catch (error) {
       clearAuth();
       loginMessage.textContent = "Login failed. You need a valid account for the selected role.";
+    }
+  });
+}
+
+if (registerForm && registerMessage) {
+  registerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(registerForm);
+    const payload = Object.fromEntries(formData.entries());
+    registerMessage.textContent = "Creating account...";
+
+    try {
+      const response = await fetch("/api/users/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      registerMessage.textContent = "Account created. Redirecting to login...";
+      registerForm.reset();
+      window.setTimeout(() => {
+        window.location.href = "login.html";
+      }, 700);
+    } catch (error) {
+      registerMessage.textContent = error.message || "Registration failed.";
     }
   });
 }

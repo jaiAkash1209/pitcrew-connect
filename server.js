@@ -78,6 +78,17 @@ function createMechanic(payload) {
   };
 }
 
+function createUserAccount(payload) {
+  return {
+    id: createId(),
+    createdAt: new Date().toISOString(),
+    name: payload.name || "",
+    email: String(payload.email || "").trim().toLowerCase(),
+    password: payload.password || "",
+    role: "user"
+  };
+}
+
 ensureFile(bookingsPath);
 ensureFile(mechanicsPath);
 ensureFile(usersPath);
@@ -108,6 +119,57 @@ app.post("/api/login", (req, res) => {
   }
 
   res.json({
+    ok: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  });
+});
+
+app.get("/api/users", (req, res) => {
+  const users = readRecords(usersPath).map((user) => {
+    return {
+      id: user.id,
+      createdAt: user.createdAt || "",
+      name: user.name || "",
+      email: user.email || "",
+      role: user.role || ""
+    };
+  });
+
+  res.json(users);
+});
+
+app.post("/api/users/register", (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  const email = String(req.body?.email || "").trim().toLowerCase();
+  const password = String(req.body?.password || "");
+  const users = readRecords(usersPath);
+
+  if (!name || !email || !password) {
+    res.status(400).json({
+      ok: false,
+      error: "Name, email, and password are required"
+    });
+    return;
+  }
+
+  const exists = users.some((user) => String(user.email || "").trim().toLowerCase() === email);
+  if (exists) {
+    res.status(409).json({
+      ok: false,
+      error: "An account with this email already exists"
+    });
+    return;
+  }
+
+  const user = createUserAccount({ name, email, password });
+  writeRecord(usersPath, user);
+
+  res.status(201).json({
     ok: true,
     user: {
       id: user.id,
