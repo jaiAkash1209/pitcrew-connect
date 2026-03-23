@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PitCrew Connect | Admin Page</title>
+  <title>PitCrew Connect | Admin Dashboard</title>
   <meta
     name="description"
-    content="Admin dashboard for reviewing bookings and mechanic applications in PitCrew Connect."
+    content="Admin dashboard for review and control in PitCrew Connect."
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
   >
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-dashboard-role="admin">
   <header class="site-header">
     <div class="container nav-shell">
       <a class="brand" href="index.html">
@@ -24,41 +24,36 @@
         <span>PitCrew Connect</span>
       </a>
       <nav class="site-nav">
-        <a href="index.html">Home</a>
-        <a href="user.html">User page</a>
-        <a href="mechanic.html">Mechanics</a>
+        <a href="#overview">Overview</a>
         <a href="#bookings-board">Bookings</a>
         <a href="#mechanics-board">Mechanics</a>
       </nav>
-      <a class="nav-cta" href="login.html">Logout</a>
+      <a class="nav-cta logout-link" href="login.html">Logout</a>
     </div>
   </header>
 
   <main>
-    <section class="hero inner-hero">
+    <section class="hero inner-hero" id="overview">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">Admin page</p>
-          <h1>Review customer requests and mechanic onboarding from one dashboard.</h1>
-          <p class="hero-text">
-            The admin page is intended for internal review. It shows saved customer bookings and mechanic submissions
-            through the live API.
+          <p class="eyebrow">Admin Dashboard</p>
+          <h1>Review platform activity with a simple control layout.</h1>
+          <p class="hero-text" id="dashboardWelcome">
+            Use this dashboard to review customer bookings and mechanic submissions without extra clutter.
           </p>
           <div class="hero-actions">
-            <button class="button button-primary" id="refreshAdminButton" type="button">Refresh dashboard</button>
-            <a class="button button-secondary" href="user.html">Open user page</a>
+            <button class="button button-primary" id="refreshAdminButton" type="button">Refresh data</button>
           </div>
           <p class="form-message" id="adminStatus" aria-live="polite"></p>
         </div>
 
         <div class="panel-card">
-          <p class="mini-label">Admin responsibilities</p>
-          <h2>Understand demand and review supply in one place.</h2>
+          <p class="mini-label">Admin sections</p>
+          <h2>Grouped into only the main tasks.</h2>
           <ul class="feature-list">
-            <li>Review incoming bookings</li>
-            <li>Inspect mechanic onboarding data</li>
-            <li>Prioritize urgent requests</li>
-            <li>Use one page as an internal control panel</li>
+            <li>Review bookings</li>
+            <li>Review mechanic profiles</li>
+            <li>Keep activity visible</li>
           </ul>
         </div>
       </div>
@@ -67,14 +62,14 @@
     <section class="section" id="bookings-board">
       <div class="container">
         <div class="section-heading left">
-          <p class="eyebrow">Bookings board</p>
-          <h2>User requests</h2>
-          <p>Every saved booking from the API appears here.</p>
+          <p class="eyebrow">Bookings</p>
+          <h2>Customer requests</h2>
+          <p>This section contains the main information admin needs to review service demand.</p>
         </div>
         <div class="admin-grid" id="bookingsList">
           <article class="empty-state">
             <h3>No bookings loaded yet</h3>
-            <p>Use refresh after the page loads, or submit a request from the user page.</p>
+            <p>Bookings will appear here after users submit service requests.</p>
           </article>
         </div>
       </div>
@@ -83,14 +78,14 @@
     <section class="section muted-section" id="mechanics-board">
       <div class="container">
         <div class="section-heading left">
-          <p class="eyebrow">Mechanics board</p>
-          <h2>Mechanic applications</h2>
-          <p>Review the mechanics that joined through the onboarding flow.</p>
+          <p class="eyebrow">Mechanics</p>
+          <h2>Mechanic profiles</h2>
+          <p>This section contains the mechanic information that admin needs to review.</p>
         </div>
         <div class="admin-grid" id="mechanicsList">
           <article class="empty-state">
             <h3>No mechanic profiles loaded yet</h3>
-            <p>Mechanic submissions will show here after onboarding forms are sent.</p>
+            <p>Mechanic profiles will appear here after they are submitted.</p>
           </article>
         </div>
       </div>
@@ -104,12 +99,12 @@
           <span class="brand-mark">PC</span>
           <span>PitCrew Connect</span>
         </a>
-        <p>Admin dashboard for marketplace review and operations.</p>
+        <p>Admin dashboard for platform review.</p>
       </div>
       <div class="footer-links">
-        <a href="index.html">Home</a>
-        <a href="user.html">Customers</a>
-        <a href="mechanic.html">Mechanics</a>
+        <a href="#overview">Overview</a>
+        <a href="#bookings-board">Bookings</a>
+        <a href="#mechanics-board">Mechanics</a>
       </div>
     </div>
   </footer>

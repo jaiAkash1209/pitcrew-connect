@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PitCrew Connect | Mechanic Portal</title>
+  <title>PitCrew Connect | Mechanic Dashboard</title>
   <meta
     name="description"
-    content="Join PitCrew Connect as a mechanic and manage service requests through a clean portal."
+    content="Mechanic dashboard for service partners in PitCrew Connect."
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
   >
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-dashboard-role="mechanic">
   <header class="site-header">
     <div class="container nav-shell">
       <a class="brand" href="index.html">
@@ -24,51 +24,58 @@
         <span>PitCrew Connect</span>
       </a>
       <nav class="site-nav">
-        <a href="index.html">Home</a>
-        <a href="#join-form">Join</a>
-        <a href="#portal-preview">Portal preview</a>
-        <a href="login.html">Login</a>
+        <a href="#overview">Overview</a>
+        <a href="#profile">Service Profile</a>
+        <a href="#workflow">Work Flow</a>
       </nav>
-      <a class="nav-cta" href="user.html">Customer page</a>
+      <a class="nav-cta logout-link" href="login.html">Logout</a>
     </div>
   </header>
 
   <main>
-    <section class="hero inner-hero">
+    <section class="hero inner-hero" id="overview">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">Mechanic portal</p>
-          <h1>Give mechanics a professional onboarding experience.</h1>
-          <p class="hero-text">
-            This page is designed for mechanics to submit business details, define service coverage,
-            and present specialties in a clear format.
+          <p class="eyebrow">Mechanic Dashboard</p>
+          <h1>Present your service details clearly and professionally.</h1>
+          <p class="hero-text" id="dashboardWelcome">
+            Use this dashboard to manage your mechanic profile and keep your service information up to date.
           </p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#join-form">Join the network</a>
-            <a class="button button-secondary" href="#portal-preview">See dashboard</a>
+          <div class="hero-stats">
+            <article>
+              <strong>Profile</strong>
+              <span>Define your services and specialties</span>
+            </article>
+            <article>
+              <strong>Coverage</strong>
+              <span>Set service area and service type</span>
+            </article>
+            <article>
+              <strong>Review</strong>
+              <span>Make information easy for admin to process</span>
+            </article>
           </div>
         </div>
 
         <div class="panel-card">
-          <p class="mini-label">Mechanic value</p>
-          <h2>Professional onboarding instead of informal lead collection.</h2>
+          <p class="mini-label">Dashboard sections</p>
+          <h2>Only the options mechanics need.</h2>
           <ul class="feature-list">
-            <li>Business and contact details</li>
-            <li>Control over service radius and job types</li>
-            <li>Structured specialties and experience</li>
-            <li>Admin review workflow</li>
+            <li>Update service profile</li>
+            <li>Set work coverage</li>
+            <li>Explain specialties clearly</li>
           </ul>
         </div>
       </div>
     </section>
 
-    <section class="section" id="join-form">
+    <section class="section" id="profile">
       <div class="container request-grid">
         <div class="request-copy">
-          <p class="eyebrow">Mechanic onboarding</p>
-          <h2>Create a mechanic profile</h2>
+          <p class="eyebrow">Service profile</p>
+          <h2>Manage your mechanic details</h2>
           <p>
-            This posts into the deployable API so mechanic submissions are stored for the MVP.
+            Keep business details, service type, and specialties in one simple form.
           </p>
         </div>
 
@@ -111,38 +118,33 @@
           </label>
           <label class="full-width">
             Specialties
-            <textarea name="specialties" rows="5" placeholder="Engine, battery, AC, diagnostics, suspension..." required></textarea>
+            <textarea name="specialties" rows="5" placeholder="Engine, battery, diagnostics, suspension..." required></textarea>
           </label>
-          <button type="submit" class="button button-primary full-width">Submit mechanic profile</button>
+          <button type="submit" class="button button-primary full-width">Save profile</button>
           <p class="form-message" id="mechanicMessage" aria-live="polite"></p>
         </form>
       </div>
     </section>
 
-    <section class="section muted-section" id="portal-preview">
+    <section class="section muted-section" id="workflow">
       <div class="container">
-        <div class="section-heading">
-          <p class="eyebrow">Dashboard preview</p>
-          <h2>What the mechanic workflow can include</h2>
-          <p>This section explains the portal purpose without using invented live requests.</p>
+        <div class="section-heading left">
+          <p class="eyebrow">Work flow</p>
+          <h2>Keep your profile ready for matching and review</h2>
+          <p>These are the main mechanic-side actions, grouped clearly.</p>
         </div>
-
-        <div class="mechanic-benefits dashboard-grid">
-          <article>
-            <h3>Service setup</h3>
-            <p>Define whether the mechanic supports roadside work, workshop repairs, home visits, or all three.</p>
+        <div class="dashboard-section-grid">
+          <article class="service-card">
+            <h3>Service type</h3>
+            <p>Choose the work you actually provide so requests are categorized correctly.</p>
           </article>
-          <article>
-            <h3>Area coverage</h3>
-            <p>State the cities or zones where the mechanic or workshop can accept requests.</p>
+          <article class="service-card">
+            <h3>Coverage area</h3>
+            <p>Define where you work so the platform can review your practical service reach.</p>
           </article>
-          <article>
+          <article class="service-card">
             <h3>Specialties</h3>
-            <p>List the specific repair and maintenance areas the mechanic wants to be known for.</p>
-          </article>
-          <article>
-            <h3>Admin review</h3>
-            <p>Submissions can be reviewed internally before they appear in broader customer workflows.</p>
+            <p>List the jobs you handle best so the platform can present you accurately.</p>
           </article>
         </div>
       </div>
@@ -156,12 +158,12 @@
           <span class="brand-mark">PC</span>
           <span>PitCrew Connect</span>
         </a>
-        <p>Mechanic-side demo flow for the marketplace MVP.</p>
+        <p>Mechanic dashboard for service partners.</p>
       </div>
       <div class="footer-links">
-        <a href="index.html">Home</a>
-        <a href="user.html">Customers</a>
-        <a href="login.html">Login</a>
+        <a href="#overview">Overview</a>
+        <a href="#profile">Service Profile</a>
+        <a href="#workflow">Work Flow</a>
       </div>
     </div>
   </footer>

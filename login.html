@@ -6,7 +6,7 @@
   <title>PitCrew Connect | Login</title>
   <meta
     name="description"
-    content="Login page for admin access and role-based entry into PitCrew Connect."
+    content="Role-based login for admin, mechanic, and user dashboards in PitCrew Connect."
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,25 +25,44 @@
       </a>
       <nav class="site-nav">
         <a href="index.html">Home</a>
-        <a href="user.html">Customers</a>
-        <a href="mechanic.html">Mechanics</a>
+        <a href="user.html">User</a>
+        <a href="mechanic.html">Mechanic</a>
       </nav>
-      <a class="nav-cta" href="user.html">Customer page</a>
+      <a class="nav-cta" href="index.html">Back to site</a>
     </div>
   </header>
 
   <main>
     <section class="hero inner-hero">
-      <div class="container login-shell">
-        <div class="hero-copy">
+      <div class="container">
+        <div class="section-heading">
           <p class="eyebrow">Login</p>
-          <h1>Sign in to continue to the right workspace.</h1>
-          <p class="hero-text">
-            Customers and mechanics can use the public pages directly. Admin access goes through this login page.
+          <h1>Choose your role, then sign in.</h1>
+          <p>
+            Every dashboard is protected. If you do not have a valid account for that role, you cannot open that dashboard.
           </p>
         </div>
 
-        <form class="request-form login-form" id="loginForm">
+        <div class="role-grid">
+          <button class="role-card active" type="button" data-role-card="admin">
+            <span class="card-index">01</span>
+            <h3>Admin Login</h3>
+            <p>For platform review, booking control, and mechanic approval.</p>
+          </button>
+          <button class="role-card" type="button" data-role-card="mechanic">
+            <span class="card-index">02</span>
+            <h3>Mechanic Login</h3>
+            <p>For service profile, requests, and work updates.</p>
+          </button>
+          <button class="role-card" type="button" data-role-card="user">
+            <span class="card-index">03</span>
+            <h3>User Login</h3>
+            <p>For customer requests, booking details, and support history.</p>
+          </button>
+        </div>
+
+        <form class="request-form login-form centered-form" id="loginForm">
+          <input type="hidden" name="role" id="selectedRole" value="admin">
           <label>
             Email
             <input type="email" name="email" placeholder="Enter your email" required>
@@ -52,16 +71,7 @@
             Password
             <input type="password" name="password" placeholder="Enter your password" required>
           </label>
-          <label class="full-width">
-            Role
-            <select name="role" required>
-              <option value="">Select your role</option>
-              <option value="admin">Admin</option>
-              <option value="customer">Customer</option>
-              <option value="mechanic">Mechanic</option>
-            </select>
-          </label>
-          <button type="submit" class="button button-primary full-width">Login</button>
+          <button type="submit" class="button button-primary full-width">Login to dashboard</button>
           <p class="form-message" id="loginMessage" aria-live="polite"></p>
         </form>
       </div>
@@ -75,12 +85,12 @@
           <span class="brand-mark">PC</span>
           <span>PitCrew Connect</span>
         </a>
-        <p>Login page for role-based access.</p>
+        <p>Role-based access for user, mechanic, and admin dashboards.</p>
       </div>
       <div class="footer-links">
         <a href="index.html">Home</a>
-        <a href="user.html">Customers</a>
-        <a href="mechanic.html">Mechanics</a>
+        <a href="user.html">User</a>
+        <a href="mechanic.html">Mechanic</a>
       </div>
     </div>
   </footer>

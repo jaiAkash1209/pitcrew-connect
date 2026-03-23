@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PitCrew Connect | User Page</title>
+  <title>PitCrew Connect | User Dashboard</title>
   <meta
     name="description"
-    content="User dashboard for customers to request help, review services, and see trusted mechanic options."
+    content="User dashboard for vehicle owners in PitCrew Connect."
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
   >
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-dashboard-role="user">
   <header class="site-header">
     <div class="container nav-shell">
       <a class="brand" href="index.html">
@@ -24,66 +24,58 @@
         <span>PitCrew Connect</span>
       </a>
       <nav class="site-nav">
-        <a href="index.html">Home</a>
-        <a href="#user-request">Request help</a>
-        <a href="#user-benefits">Benefits</a>
-        <a href="mechanic.html">Mechanics</a>
-        <a href="login.html">Login</a>
+        <a href="#overview">Overview</a>
+        <a href="#request">Request Service</a>
+        <a href="#support">Support</a>
       </nav>
-      <a class="nav-cta" href="booking.html">Booking form</a>
+      <a class="nav-cta logout-link" href="login.html">Logout</a>
     </div>
   </header>
 
   <main>
-    <section class="hero inner-hero">
+    <section class="hero inner-hero" id="overview">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">User page</p>
-          <h1>A clear page for customers who need automobile service.</h1>
-          <p class="hero-text">
-            This page is dedicated to customers. It focuses on submitting vehicle service requests in a structured,
-            professional way.
+          <p class="eyebrow">User Dashboard</p>
+          <h1>Manage your vehicle service requests clearly.</h1>
+          <p class="hero-text" id="dashboardWelcome">
+            Use this dashboard to create a new request and keep your service information organized.
           </p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#user-request">Create request</a>
-            <a class="button button-secondary" href="booking.html">Open booking flow</a>
-          </div>
           <div class="hero-stats">
             <article>
-              <strong>Customer page</strong>
-              <span>Focused on request submission</span>
+              <strong>New Request</strong>
+              <span>Submit roadside, garage, or home-service needs</span>
             </article>
             <article>
-              <strong>Service types</strong>
-              <span>Roadside, garage, and home visit</span>
+              <strong>Current Status</strong>
+              <span>Keep service details in one place</span>
             </article>
             <article>
-              <strong>Clear workflow</strong>
-              <span>Easy handoff to admin review</span>
+              <strong>Support</strong>
+              <span>Use the right category for faster handling</span>
             </article>
           </div>
         </div>
 
         <div class="panel-card">
-          <p class="mini-label">Customer experience</p>
-          <h2>Designed to make vehicle service requests understandable and complete.</h2>
+          <p class="mini-label">Dashboard sections</p>
+          <h2>Simple options with no extra clutter.</h2>
           <ul class="feature-list">
-            <li>Simple request submission</li>
-            <li>Visible urgency and service type</li>
-            <li>Clear next steps after booking</li>
-            <li>Ready for future live tracking</li>
+            <li>Request service</li>
+            <li>View request guidance</li>
+            <li>Use the right support category</li>
           </ul>
         </div>
       </div>
     </section>
 
-    <section class="section" id="user-request">
+    <section class="section" id="request">
       <div class="container request-grid">
         <div class="request-copy">
-          <p class="eyebrow">User request</p>
-          <h2>Ask for a mechanic from the user page</h2>
+          <p class="eyebrow">Request service</p>
+          <h2>Create a new vehicle service request</h2>
           <p>
-            This page is for customers only. Requests submitted here are saved into the same backend.
+            This is the main action for user accounts. Keep the form simple and complete.
           </p>
         </div>
 
@@ -98,7 +90,7 @@
           </label>
           <label>
             Vehicle
-            <input type="text" name="vehicle" placeholder="e.g. Mahindra XUV300" required>
+            <input type="text" name="vehicle" placeholder="e.g. Hyundai Creta" required>
           </label>
           <label>
             Service type
@@ -126,34 +118,31 @@
             Problem details
             <textarea name="issue" rows="5" placeholder="Describe the issue" required></textarea>
           </label>
-          <button type="submit" class="button button-primary full-width">Submit user request</button>
+          <button type="submit" class="button button-primary full-width">Submit request</button>
           <p class="form-message" id="userMessage" aria-live="polite"></p>
         </form>
       </div>
     </section>
 
-    <section class="section muted-section" id="user-benefits">
+    <section class="section muted-section" id="support">
       <div class="container">
-        <div class="section-heading">
-          <p class="eyebrow">Why users stay</p>
-          <h2>A clearer customer experience than unstructured service requests</h2>
-          <p>Users get more trust, more visibility, and less friction.</p>
+        <div class="section-heading left">
+          <p class="eyebrow">Support guide</p>
+          <h2>Choose the right service type</h2>
+          <p>Keep choices simple so the request reaches the right team faster.</p>
         </div>
-        <div class="service-grid">
+        <div class="dashboard-section-grid">
           <article class="service-card">
-            <span class="card-index">01</span>
-            <h3>Trusted profiles</h3>
-            <p>Users can choose mechanics with visible specialties, business details, and reviews.</p>
+            <h3>Roadside support</h3>
+            <p>Use this when the vehicle cannot continue and immediate assistance may be needed.</p>
           </article>
           <article class="service-card">
-            <span class="card-index">02</span>
-            <h3>Clear options</h3>
-            <p>Roadside, workshop, and home visit flows are separated so users choose the right path.</p>
+            <h3>Garage booking</h3>
+            <p>Use this for inspection, repair, diagnostics, or workshop-based service.</p>
           </article>
           <article class="service-card">
-            <span class="card-index">03</span>
-            <h3>Faster follow-up</h3>
-            <p>Once a request is saved, admin or dispatch can review it without manual WhatsApp-style tracking.</p>
+            <h3>At-home service</h3>
+            <p>Use this for smaller service jobs that can be completed outside a workshop.</p>
           </article>
         </div>
       </div>
@@ -167,13 +156,12 @@
           <span class="brand-mark">PC</span>
           <span>PitCrew Connect</span>
         </a>
-        <p>Customer-facing user page for the marketplace MVP.</p>
+        <p>User dashboard for customer accounts.</p>
       </div>
       <div class="footer-links">
-        <a href="index.html">Home</a>
-        <a href="booking.html">Booking</a>
-        <a href="mechanic.html">Mechanics</a>
-        <a href="login.html">Login</a>
+        <a href="#overview">Overview</a>
+        <a href="#request">Request Service</a>
+        <a href="#support">Support</a>
       </div>
     </div>
   </footer>
