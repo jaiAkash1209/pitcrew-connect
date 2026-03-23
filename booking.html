@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PitCrew Connect | Book a Mechanic</title>
+  <meta name="description"
+    content="Book roadside help, garage repair, or an at-home mechanic visit with PitCrew Connect.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="container nav-shell">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">PC</span>
+        <span>PitCrew Connect</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">Home</a>
+        <a href="#booking-form">Book service</a>
+        <a href="#matched-mechanics">Mechanics</a>
+      </nav>
+      <a class="nav-cta" href="mechanic.html">Mechanic portal</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero inner-hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Customer booking</p>
+          <h1>Request the right auto help fast.</h1>
+          <p class="hero-text">
+            Share your issue, pick your service type, and see the kind of mechanic
+            matches this marketplace can provide.
+          </p>
+          <div class="hero-stats">
+            <article>
+              <strong>Roadside</strong>
+              <span>Breakdowns, punctures, jump-starts</span>
+            </article>
+            <article>
+              <strong>Garage</strong>
+              <span>Diagnostics, repair, major service</span>
+            </article>
+            <article>
+              <strong>Home visit</strong>
+              <span>Maintenance and minor repair</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <p class="mini-label">Why customers use it</p>
+          <h2>One place to compare speed, trust, and convenience.</h2>
+          <ul class="feature-list">
+            <li>Clear service categories and urgency level</li>
+            <li>Verified mechanics with visible ratings</li>
+            <li>Mobile-friendly booking flow</li>
+            <li>Future-ready for live tracking and payment</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="booking-form">
+      <div class="container request-grid">
+        <div class="request-copy">
+          <p class="eyebrow">Live booking demo</p>
+          <h2>Create a service request</h2>
+          <p>
+            This posts into the deployable API and stores requests on disk for the MVP.
+          </p>
+        </div>
+
+        <form class="request-form" id="bookingForm">
+          <label>
+            Full name
+            <input type="text" name="name" placeholder="Enter your name" required>
+          </label>
+          <label>
+            Phone number
+            <input type="tel" name="phone" placeholder="Enter your phone number" required>
+          </label>
+          <label>
+            Vehicle brand and model
+            <input type="text" name="vehicle" placeholder="e.g. Hyundai Creta 2021" required>
+          </label>
+          <label>
+            Service type
+            <select name="service" required>
+              <option value="">Select a service</option>
+              <option>Emergency roadside help</option>
+              <option>Garage repair booking</option>
+              <option>At-home mechanic visit</option>
+            </select>
+          </label>
+          <label>
+            Location
+            <input type="text" name="location" placeholder="Current area or address" required>
+          </label>
+          <label>
+            Urgency
+            <select name="urgency" required>
+              <option value="">Select urgency</option>
+              <option>Immediate</option>
+              <option>Today</option>
+              <option>This week</option>
+            </select>
+          </label>
+          <label class="full-width">
+            Describe the issue
+            <textarea name="issue" rows="5" placeholder="Explain the problem in a few lines" required></textarea>
+          </label>
+          <button type="submit" class="button button-primary full-width">Send booking request</button>
+          <p class="form-message" id="bookingMessage" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="section muted-section" id="matched-mechanics">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Example matches</p>
+          <h2>What matched mechanics could look like</h2>
+          <p>This gives the marketplace a more concrete customer experience.</p>
+        </div>
+
+        <div class="service-grid">
+          <article class="service-card">
+            <span class="card-index">4.9</span>
+            <h3>Ravi Kumar</h3>
+            <p>Mobile mechanic for batteries, starter issues, and roadside response.</p>
+            <p class="dispatch-meta">2 km away - Can arrive in 15 minutes</p>
+          </article>
+          <article class="service-card">
+            <span class="card-index">4.8</span>
+            <h3>Metro Auto Works</h3>
+            <p>Garage partner for diagnostics, brake jobs, suspension, and servicing.</p>
+            <p class="dispatch-meta">Open until 9 PM - Pickup available</p>
+          </article>
+          <article class="service-card">
+            <span class="card-index">4.7</span>
+            <h3>Sandeep On Wheels</h3>
+            <p>Home-visit specialist for oil changes, filters, inspections, and batteries.</p>
+            <p class="dispatch-meta">Home service - Covers 12 km radius</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div>
+        <a class="brand footer-brand" href="index.html">
+          <span class="brand-mark">PC</span>
+          <span>PitCrew Connect</span>
+        </a>
+        <p>Customer-side demo flow for the marketplace MVP.</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="mechanic.html">Mechanic portal</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PitCrew Connect | Mechanic Portal</title>
+  <meta
+    name="description"
+    content="Join PitCrew Connect as a mechanic and manage service requests through a clean portal."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-shell">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">PC</span>
+        <span>PitCrew Connect</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">Home</a>
+        <a href="#join-form">Join</a>
+        <a href="#portal-preview">Portal preview</a>
+      </nav>
+      <a class="nav-cta" href="booking.html">Customer booking</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero inner-hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Mechanic portal</p>
+          <h1>Help mechanics turn skill into steady work.</h1>
+          <p class="hero-text">
+            This page shows the mechanic side of the marketplace: onboarding,
+            service coverage, and a request queue preview.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#join-form">Join the network</a>
+            <a class="button button-secondary" href="#portal-preview">See dashboard</a>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <p class="mini-label">Mechanic value</p>
+          <h2>Better leads, better trust, better repeat business.</h2>
+          <ul class="feature-list">
+            <li>Public profile with reviews and specialties</li>
+            <li>Control over service radius and job types</li>
+            <li>Simple lead queue for accepting work</li>
+            <li>Future-ready for payouts and earnings reports</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="join-form">
+      <div class="container request-grid">
+        <div class="request-copy">
+          <p class="eyebrow">Mechanic onboarding</p>
+          <h2>Create a mechanic profile</h2>
+          <p>
+            This posts into the deployable API so mechanic submissions are stored for the MVP.
+          </p>
+        </div>
+
+        <form class="request-form" id="mechanicForm">
+          <label>
+            Full name
+            <input type="text" name="name" placeholder="Enter your name" required>
+          </label>
+          <label>
+            Phone number
+            <input type="tel" name="phone" placeholder="Enter your phone number" required>
+          </label>
+          <label>
+            Workshop or business name
+            <input type="text" name="business" placeholder="Garage or service name" required>
+          </label>
+          <label>
+            Experience
+            <select name="experience" required>
+              <option value="">Select experience</option>
+              <option>0 to 2 years</option>
+              <option>3 to 5 years</option>
+              <option>6 to 10 years</option>
+              <option>10+ years</option>
+            </select>
+          </label>
+          <label>
+            Service area
+            <input type="text" name="location" placeholder="City or area covered" required>
+          </label>
+          <label>
+            Service type
+            <select name="service" required>
+              <option value="">Select service focus</option>
+              <option>Roadside support</option>
+              <option>Garage repairs</option>
+              <option>Home visits</option>
+              <option>All of the above</option>
+            </select>
+          </label>
+          <label class="full-width">
+            Specialties
+            <textarea name="specialties" rows="5" placeholder="Engine, battery, AC, diagnostics, suspension..." required></textarea>
+          </label>
+          <button type="submit" class="button button-primary full-width">Submit mechanic profile</button>
+          <p class="form-message" id="mechanicMessage" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="section muted-section" id="portal-preview">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Dashboard preview</p>
+          <h2>Example request queue for mechanics</h2>
+          <p>A simple portal view helps show how mechanics would manage incoming jobs.</p>
+        </div>
+
+        <div class="mechanic-benefits dashboard-grid">
+          <article>
+            <h3>Immediate request</h3>
+            <p>Flat tire assistance in Salt Lake. Customer requests arrival within 20 minutes.</p>
+          </article>
+          <article>
+            <h3>Scheduled garage job</h3>
+            <p>Brake inspection for tomorrow morning with pickup requested.</p>
+          </article>
+          <article>
+            <h3>Home visit booking</h3>
+            <p>Battery replacement at customer address after 6 PM.</p>
+          </article>
+          <article>
+            <h3>Profile health</h3>
+            <p>4.8 average rating, 18 open leads this week, 7 repeat customers.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div>
+        <a class="brand footer-brand" href="index.html">
+          <span class="brand-mark">PC</span>
+          <span>PitCrew Connect</span>
+        </a>
+        <p>Mechanic-side demo flow for the marketplace MVP.</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="booking.html">Customer booking</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
