@@ -8,6 +8,7 @@ const port = process.env.PORT || 8080;
 const dataDir = path.join(__dirname, "data");
 const bookingsPath = path.join(dataDir, "bookings.json");
 const mechanicsPath = path.join(dataDir, "mechanics.json");
+const usersPath = path.join(dataDir, "users.json");
 
 function ensureFile(filePath) {
   if (!fs.existsSync(dataDir)) {
@@ -79,9 +80,43 @@ function createMechanic(payload) {
 
 ensureFile(bookingsPath);
 ensureFile(mechanicsPath);
+ensureFile(usersPath);
 
 app.use(express.json());
 app.use(express.static(__dirname));
+
+app.post("/api/login", (req, res) => {
+  const email = String(req.body?.email || "").trim().toLowerCase();
+  const password = String(req.body?.password || "");
+  const role = String(req.body?.role || "").trim().toLowerCase();
+  const users = readRecords(usersPath);
+
+  const user = users.find((item) => {
+    return (
+      String(item.email || "").trim().toLowerCase() === email &&
+      String(item.password || "") === password &&
+      String(item.role || "").trim().toLowerCase() === role
+    );
+  });
+
+  if (!user) {
+    res.status(401).json({
+      ok: false,
+      error: "Invalid login details"
+    });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  });
+});
 
 app.get("/api/bookings", (req, res) => {
   res.json(readRecords(bookingsPath));

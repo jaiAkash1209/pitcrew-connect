@@ -1,0 +1,23 @@
+[
+  {
+    "id": "admin-1",
+    "name": "Platform Admin",
+    "email": "admin@pitcrewconnect.com",
+    "password": "Admin123!",
+    "role": "admin"
+  },
+  {
+    "id": "mechanic-1",
+    "name": "Service Partner",
+    "email": "mechanic@pitcrewconnect.com",
+    "password": "Mechanic123!",
+    "role": "mechanic"
+  },
+  {
+    "id": "user-1",
+    "name": "Customer Account",
+    "email": "user@pitcrewconnect.com",
+    "password": "User123!",
+    "role": "user"
+  }
+]
