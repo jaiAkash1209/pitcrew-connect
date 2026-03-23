@@ -210,7 +210,9 @@ label,
 .mechanic-benefits article,
 .request-form,
 .trust-strip,
-.mechanics-panel {
+.mechanics-panel,
+.admin-card,
+.empty-state {
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
@@ -473,6 +475,42 @@ textarea:focus {
   gap: 1rem;
 }
 
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.admin-card,
+.empty-state {
+  padding: 1.4rem;
+  border-radius: 1.4rem;
+}
+
+.admin-card h3,
+.empty-state h3 {
+  margin-bottom: 0.75rem;
+}
+
+.admin-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.admin-meta span {
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(22, 50, 79, 0.08);
+}
+
+.admin-note {
+  color: var(--muted);
+}
+
 @media (max-width: 920px) {
   .nav-shell,
   .hero-grid,
@@ -480,6 +518,7 @@ textarea:focus {
   .request-grid,
   .service-grid,
   .mechanic-benefits,
+  .admin-grid,
   .footer-shell {
     grid-template-columns: 1fr;
   }

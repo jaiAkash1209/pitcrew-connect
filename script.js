@@ -4,6 +4,12 @@ const bookingForm = document.getElementById("bookingForm");
 const bookingMessage = document.getElementById("bookingMessage");
 const mechanicForm = document.getElementById("mechanicForm");
 const mechanicMessage = document.getElementById("mechanicMessage");
+const userForm = document.getElementById("userForm");
+const userMessage = document.getElementById("userMessage");
+const bookingsList = document.getElementById("bookingsList");
+const mechanicsList = document.getElementById("mechanicsList");
+const adminStatus = document.getElementById("adminStatus");
+const refreshAdminButton = document.getElementById("refreshAdminButton");
 
 async function submitJson(url, form, messageElement, successText) {
   const formData = new FormData(form);
@@ -27,7 +33,98 @@ async function submitJson(url, form, messageElement, successText) {
     messageElement.textContent = successText(payload);
     form.reset();
   } catch (error) {
-    messageElement.textContent = "Could not submit. Start the local server with server.ps1 and try again.";
+    messageElement.textContent = "Could not submit. Please try again in a moment.";
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function renderCards(listElement, records, type) {
+  if (!listElement) {
+    return;
+  }
+
+  if (!records.length) {
+    listElement.innerHTML = `
+      <article class="empty-state">
+        <h3>No ${type} yet</h3>
+        <p class="admin-note">New ${type} will appear here after forms are submitted.</p>
+      </article>
+    `;
+    return;
+  }
+
+  listElement.innerHTML = records
+    .slice()
+    .reverse()
+    .map((record) => {
+      if (type === "bookings") {
+        return `
+          <article class="admin-card">
+            <h3>${escapeHtml(record.name || "Unnamed request")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.service || "No service")}</span>
+              <span>${escapeHtml(record.urgency || "No urgency")}</span>
+              <span>${escapeHtml(record.location || "No location")}</span>
+            </div>
+            <p><strong>Vehicle:</strong> ${escapeHtml(record.vehicle || "-")}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(record.phone || "-")}</p>
+            <p><strong>Issue:</strong> ${escapeHtml(record.issue || "-")}</p>
+          </article>
+        `;
+      }
+
+      return `
+        <article class="admin-card">
+          <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
+          <div class="admin-meta">
+            <span>${escapeHtml(record.service || "No service")}</span>
+            <span>${escapeHtml(record.experience || "No experience")}</span>
+            <span>${escapeHtml(record.location || "No location")}</span>
+          </div>
+          <p><strong>Business:</strong> ${escapeHtml(record.business || "-")}</p>
+          <p><strong>Phone:</strong> ${escapeHtml(record.phone || "-")}</p>
+          <p><strong>Specialties:</strong> ${escapeHtml(record.specialties || "-")}</p>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+async function loadAdminData() {
+  if (!bookingsList || !mechanicsList || !adminStatus) {
+    return;
+  }
+
+  adminStatus.textContent = "Refreshing dashboard...";
+
+  try {
+    const [bookingsResponse, mechanicsResponse] = await Promise.all([
+      fetch("/api/bookings"),
+      fetch("/api/mechanics")
+    ]);
+
+    if (!bookingsResponse.ok || !mechanicsResponse.ok) {
+      throw new Error("Dashboard fetch failed");
+    }
+
+    const [bookings, mechanics] = await Promise.all([
+      bookingsResponse.json(),
+      mechanicsResponse.json()
+    ]);
+
+    renderCards(bookingsList, Array.isArray(bookings) ? bookings : [], "bookings");
+    renderCards(mechanicsList, Array.isArray(mechanics) ? mechanics : [], "mechanics");
+    adminStatus.textContent = "Dashboard updated.";
+  } catch (error) {
+    adminStatus.textContent = "Could not load admin data right now.";
   }
 }
 
@@ -41,6 +138,16 @@ if (requestForm && formMessage) {
   });
 }
 
+if (userForm && userMessage) {
+  userForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    await submitJson("/api/bookings", userForm, userMessage, (payload) =>
+      `${payload.name}, your user request for ${String(payload.service).toLowerCase()} was saved.`
+    );
+  });
+}
+
 if (bookingForm && bookingMessage) {
   bookingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -49,6 +156,14 @@ if (bookingForm && bookingMessage) {
       `${payload.name}, your ${String(payload.service).toLowerCase()} booking was saved as a ${String(payload.urgency).toLowerCase()} request.`
     );
   });
+}
+
+if (refreshAdminButton) {
+  refreshAdminButton.addEventListener("click", loadAdminData);
+}
+
+if (bookingsList && mechanicsList) {
+  loadAdminData();
 }
 
 if (mechanicForm && mechanicMessage) {

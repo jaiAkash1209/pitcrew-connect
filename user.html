@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PitCrew Connect | User Page</title>
+  <meta
+    name="description"
+    content="User dashboard for customers to request help, review services, and see trusted mechanic options."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-shell">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">PC</span>
+        <span>PitCrew Connect</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">Home</a>
+        <a href="#user-request">Request help</a>
+        <a href="#user-benefits">Benefits</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+      <a class="nav-cta" href="booking.html">Quick booking</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero inner-hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">User page</p>
+          <h1>Everything a vehicle owner needs in one place.</h1>
+          <p class="hero-text">
+            Users can request help, compare service types, and choose the fastest and most trusted mechanic flow.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#user-request">Create request</a>
+            <a class="button button-secondary" href="booking.html">Open booking flow</a>
+          </div>
+          <div class="hero-stats">
+            <article>
+              <strong>1 account</strong>
+              <span>Request help and track service</span>
+            </article>
+            <article>
+              <strong>3 flows</strong>
+              <span>Roadside, garage, and home visit</span>
+            </article>
+            <article>
+              <strong>Fast help</strong>
+              <span>Find the right mechanic quickly</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <p class="mini-label">Customer experience</p>
+          <h2>Built to reduce stress when something goes wrong.</h2>
+          <ul class="feature-list">
+            <li>Simple request submission</li>
+            <li>Visible urgency and service type</li>
+            <li>Clear next steps after booking</li>
+            <li>Ready for future live tracking</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="user-request">
+      <div class="container request-grid">
+        <div class="request-copy">
+          <p class="eyebrow">User request</p>
+          <h2>Ask for a mechanic from the user page</h2>
+          <p>
+            This page is for customers only. Requests submitted here are saved into the same backend.
+          </p>
+        </div>
+
+        <form class="request-form" id="userForm">
+          <label>
+            Full name
+            <input type="text" name="name" placeholder="Enter your name" required>
+          </label>
+          <label>
+            Phone number
+            <input type="tel" name="phone" placeholder="Enter your phone number" required>
+          </label>
+          <label>
+            Vehicle
+            <input type="text" name="vehicle" placeholder="e.g. Mahindra XUV300" required>
+          </label>
+          <label>
+            Service type
+            <select name="service" required>
+              <option value="">Select a service</option>
+              <option>Emergency roadside help</option>
+              <option>Garage repair booking</option>
+              <option>At-home mechanic visit</option>
+            </select>
+          </label>
+          <label>
+            Location
+            <input type="text" name="location" placeholder="Current area or address" required>
+          </label>
+          <label>
+            Urgency
+            <select name="urgency" required>
+              <option value="">Select urgency</option>
+              <option>Immediate</option>
+              <option>Today</option>
+              <option>This week</option>
+            </select>
+          </label>
+          <label class="full-width">
+            Problem details
+            <textarea name="issue" rows="5" placeholder="Describe the issue" required></textarea>
+          </label>
+          <button type="submit" class="button button-primary full-width">Submit user request</button>
+          <p class="form-message" id="userMessage" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="section muted-section" id="user-benefits">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Why users stay</p>
+          <h2>A cleaner customer experience than random phone calls</h2>
+          <p>Users get more trust, more visibility, and less friction.</p>
+        </div>
+        <div class="service-grid">
+          <article class="service-card">
+            <span class="card-index">01</span>
+            <h3>Trusted profiles</h3>
+            <p>Users can choose mechanics with visible specialties, business details, and reviews.</p>
+          </article>
+          <article class="service-card">
+            <span class="card-index">02</span>
+            <h3>Clear options</h3>
+            <p>Roadside, workshop, and home visit flows are separated so users choose the right path.</p>
+          </article>
+          <article class="service-card">
+            <span class="card-index">03</span>
+            <h3>Faster follow-up</h3>
+            <p>Once a request is saved, admin or dispatch can review it without manual WhatsApp-style tracking.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div>
+        <a class="brand footer-brand" href="index.html">
+          <span class="brand-mark">PC</span>
+          <span>PitCrew Connect</span>
+        </a>
+        <p>Customer-facing user page for the marketplace MVP.</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="booking.html">Booking</a>
+        <a href="admin.html">Admin</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

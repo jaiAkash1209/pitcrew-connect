@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PitCrew Connect | Admin Page</title>
+  <meta
+    name="description"
+    content="Admin dashboard for reviewing bookings and mechanic applications in PitCrew Connect."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-shell">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">PC</span>
+        <span>PitCrew Connect</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">Home</a>
+        <a href="user.html">User page</a>
+        <a href="#bookings-board">Bookings</a>
+        <a href="#mechanics-board">Mechanics</a>
+      </nav>
+      <a class="nav-cta" href="user.html">User page</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero inner-hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Admin page</p>
+          <h1>Review the whole marketplace from one dashboard.</h1>
+          <p class="hero-text">
+            Admin can inspect user bookings and mechanic applications from the live API without opening raw files.
+          </p>
+          <div class="hero-actions">
+            <button class="button button-primary" id="refreshAdminButton" type="button">Refresh dashboard</button>
+            <a class="button button-secondary" href="user.html">Open user page</a>
+          </div>
+          <p class="form-message" id="adminStatus" aria-live="polite"></p>
+        </div>
+
+        <div class="panel-card">
+          <p class="mini-label">Admin responsibilities</p>
+          <h2>See what users need and who is ready to serve them.</h2>
+          <ul class="feature-list">
+            <li>Review incoming bookings</li>
+            <li>Inspect mechanic onboarding data</li>
+            <li>Prioritize urgent requests</li>
+            <li>Use one page as an internal control panel</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="bookings-board">
+      <div class="container">
+        <div class="section-heading left">
+          <p class="eyebrow">Bookings board</p>
+          <h2>User requests</h2>
+          <p>Every saved booking from the API appears here.</p>
+        </div>
+        <div class="admin-grid" id="bookingsList">
+          <article class="empty-state">
+            <h3>No bookings loaded yet</h3>
+            <p>Use refresh after the page loads, or submit a request from the user page.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section muted-section" id="mechanics-board">
+      <div class="container">
+        <div class="section-heading left">
+          <p class="eyebrow">Mechanics board</p>
+          <h2>Mechanic applications</h2>
+          <p>Review the mechanics that joined through the onboarding flow.</p>
+        </div>
+        <div class="admin-grid" id="mechanicsList">
+          <article class="empty-state">
+            <h3>No mechanic profiles loaded yet</h3>
+            <p>Mechanic submissions will show here after onboarding forms are sent.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div>
+        <a class="brand footer-brand" href="index.html">
+          <span class="brand-mark">PC</span>
+          <span>PitCrew Connect</span>
+        </a>
+        <p>Admin dashboard for marketplace review and operations.</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="user.html">User page</a>
+        <a href="mechanic.html">Mechanic portal</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
