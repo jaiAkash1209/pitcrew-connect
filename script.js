@@ -12,8 +12,53 @@ const adminStatus = document.getElementById("adminStatus");
 const refreshAdminButton = document.getElementById("refreshAdminButton");
 const loginForm = document.getElementById("loginForm");
 const loginMessage = document.getElementById("loginMessage");
+const selectedRoleInput = document.getElementById("selectedRole");
+const roleCards = document.querySelectorAll("[data-role-card]");
+const dashboardWelcome = document.getElementById("dashboardWelcome");
+const logoutLinks = document.querySelectorAll(".logout-link");
+const dashboardRole = document.body?.dataset?.dashboardRole || "";
 
-const ADMIN_SESSION_KEY = "pitcrew_admin_session";
+const AUTH_STORAGE_KEY = "pitcrew_auth";
+
+function setAuth(auth) {
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+}
+
+function getAuth() {
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function clearAuth() {
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function getDashboardPath(role) {
+  if (role === "admin") {
+    return "admin.html";
+  }
+
+  if (role === "mechanic") {
+    return "mechanic.html";
+  }
+
+  return "user.html";
+}
+
+function applyRoleSelection(role) {
+  if (!selectedRoleInput) {
+    return;
+  }
+
+  selectedRoleInput.value = role;
+  roleCards.forEach((card) => {
+    card.classList.toggle("active", card.dataset.roleCard === role);
+  });
+}
 
 async function submitJson(url, form, messageElement, successText) {
   const formData = new FormData(form);
@@ -132,18 +177,28 @@ async function loadAdminData() {
   }
 }
 
-function isAdminLoggedIn() {
-  return window.localStorage.getItem(ADMIN_SESSION_KEY) === "true";
-}
-
-function requireAdminLogin() {
-  if (!bookingsList || !mechanicsList) {
+function requireDashboardAccess(requiredRole) {
+  if (!requiredRole) {
     return;
   }
 
-  if (!isAdminLoggedIn()) {
+  const auth = getAuth();
+  if (!auth || auth.role !== requiredRole) {
     window.location.href = "login.html";
+    return;
   }
+
+  if (dashboardWelcome) {
+    dashboardWelcome.textContent = `${auth.name}, this is your ${requiredRole} dashboard.`;
+  }
+}
+
+if (roleCards.length && selectedRoleInput) {
+  roleCards.forEach((card) => {
+    card.addEventListener("click", () => {
+      applyRoleSelection(card.dataset.roleCard || "admin");
+    });
+  });
 }
 
 if (requestForm && formMessage) {
@@ -161,7 +216,7 @@ if (userForm && userMessage) {
     event.preventDefault();
 
     await submitJson("/api/bookings", userForm, userMessage, (payload) =>
-      `${payload.name}, your user request for ${String(payload.service).toLowerCase()} was saved.`
+      `${payload.name}, your request was saved successfully.`
     );
   });
 }
@@ -171,7 +226,17 @@ if (bookingForm && bookingMessage) {
     event.preventDefault();
 
     await submitJson("/api/bookings", bookingForm, bookingMessage, (payload) =>
-      `${payload.name}, your ${String(payload.service).toLowerCase()} booking was saved as a ${String(payload.urgency).toLowerCase()} request.`
+      `${payload.name}, your booking request was saved successfully.`
+    );
+  });
+}
+
+if (mechanicForm && mechanicMessage) {
+  mechanicForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    await submitJson("/api/mechanics", mechanicForm, mechanicMessage, (payload) =>
+      `${payload.name}, your mechanic profile was saved successfully.`
     );
   });
 }
@@ -180,52 +245,52 @@ if (refreshAdminButton) {
   refreshAdminButton.addEventListener("click", loadAdminData);
 }
 
-if (bookingsList && mechanicsList) {
-  requireAdminLogin();
+if (dashboardRole) {
+  requireDashboardAccess(dashboardRole);
+}
+
+if (dashboardRole === "admin" && bookingsList && mechanicsList) {
   loadAdminData();
 }
 
-if (mechanicForm && mechanicMessage) {
-  mechanicForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    await submitJson("/api/mechanics", mechanicForm, mechanicMessage, (payload) =>
-      `${payload.name}, your mechanic profile for ${String(payload.service).toLowerCase()} was saved.`
-    );
+logoutLinks.forEach((link) => {
+  link.addEventListener("click", () => {
+    clearAuth();
   });
-}
+});
 
 if (loginForm && loginMessage) {
-  loginForm.addEventListener("submit", (event) => {
+  loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const formData = new FormData(loginForm);
-    const role = String(formData.get("role") || "");
+    const payload = Object.fromEntries(formData.entries());
+    const role = String(payload.role || "");
 
-    if (role === "admin") {
-      window.localStorage.setItem(ADMIN_SESSION_KEY, "true");
-      loginMessage.textContent = "Login successful. Redirecting to admin page...";
+    loginMessage.textContent = "Checking login...";
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      setAuth(data.user);
+      loginMessage.textContent = "Login successful. Redirecting...";
       window.setTimeout(() => {
-        window.location.href = "admin.html";
-      }, 500);
-      return;
-    }
-
-    window.localStorage.removeItem(ADMIN_SESSION_KEY);
-
-    if (role === "customer") {
-      loginMessage.textContent = "Redirecting to customer page...";
-      window.setTimeout(() => {
-        window.location.href = "user.html";
-      }, 500);
-      return;
-    }
-
-    if (role === "mechanic") {
-      loginMessage.textContent = "Redirecting to mechanic page...";
-      window.setTimeout(() => {
-        window.location.href = "mechanic.html";
-      }, 500);
+        window.location.href = getDashboardPath(role);
+      }, 400);
+    } catch (error) {
+      clearAuth();
+      loginMessage.textContent = "Login failed. You need a valid account for the selected role.";
     }
   });
 }
