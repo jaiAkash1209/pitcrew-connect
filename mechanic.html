@@ -25,46 +25,24 @@
       </a>
       <nav class="site-nav">
         <a href="#overview">Overview</a>
-        <a href="#profile">Service Profile</a>
-        <a href="#workflow">Work Flow</a>
+        <a href="#profile">Profile</a>
+        <a href="#workflow">Settings</a>
       </nav>
       <a class="nav-cta logout-link" href="login.html">Logout</a>
     </div>
   </header>
 
   <main>
-    <section class="hero inner-hero" id="overview">
-      <div class="container hero-grid">
-        <div class="hero-copy">
+    <section class="section dashboard-top" id="overview">
+      <div class="container dashboard-header">
+        <div>
           <p class="eyebrow">Mechanic Dashboard</p>
-          <h1>Present your service details clearly and professionally.</h1>
-          <p class="hero-text" id="dashboardWelcome">
-            Use this dashboard to manage your mechanic profile and keep your service information up to date.
-          </p>
-          <div class="hero-stats">
-            <article>
-              <strong>Profile</strong>
-              <span>Define your services and specialties</span>
-            </article>
-            <article>
-              <strong>Coverage</strong>
-              <span>Set service area and service type</span>
-            </article>
-            <article>
-              <strong>Review</strong>
-              <span>Make information easy for admin to process</span>
-            </article>
-          </div>
+          <h1 class="dashboard-title">Service Profile</h1>
+          <p class="dashboard-subtitle" id="dashboardWelcome">Update profile and work settings.</p>
         </div>
-
-        <div class="panel-card">
-          <p class="mini-label">Dashboard sections</p>
-          <h2>Only the options mechanics need.</h2>
-          <ul class="feature-list">
-            <li>Update service profile</li>
-            <li>Set work coverage</li>
-            <li>Explain specialties clearly</li>
-          </ul>
+        <div class="dashboard-actions">
+          <a class="button button-secondary" href="#profile">Profile</a>
+          <a class="button button-secondary" href="#workflow">Settings</a>
         </div>
       </div>
     </section>
@@ -129,24 +107,44 @@
     <section class="section muted-section" id="workflow">
       <div class="container">
         <div class="section-heading left">
-          <p class="eyebrow">Work flow</p>
-          <h2>Keep your profile ready for matching and review</h2>
-          <p>These are the main mechanic-side actions, grouped clearly.</p>
+          <p class="eyebrow">Settings</p>
+          <h2>Update work preferences</h2>
+          <p>Save the options you want to update.</p>
         </div>
-        <div class="dashboard-section-grid">
-          <article class="service-card">
-            <h3>Service type</h3>
-            <p>Choose the work you actually provide so requests are categorized correctly.</p>
-          </article>
-          <article class="service-card">
-            <h3>Coverage area</h3>
-            <p>Define where you work so the platform can review your practical service reach.</p>
-          </article>
-          <article class="service-card">
-            <h3>Specialties</h3>
-            <p>List the jobs you handle best so the platform can present you accurately.</p>
-          </article>
-        </div>
+        <form class="request-form compact-form" id="mechanicSettingsForm">
+          <label>
+            Availability
+            <select name="availability">
+              <option value="Full-time">Full-time</option>
+              <option value="Weekdays">Weekdays</option>
+              <option value="Weekends">Weekends</option>
+              <option value="On-call">On-call</option>
+            </select>
+          </label>
+          <label>
+            Preferred jobs
+            <select name="preferredJobs">
+              <option value="Roadside">Roadside</option>
+              <option value="Garage">Garage</option>
+              <option value="Home visits">Home visits</option>
+              <option value="Mixed">Mixed</option>
+            </select>
+          </label>
+          <label>
+            Working hours
+            <input type="text" name="workingHours" placeholder="e.g. 9 AM - 7 PM">
+          </label>
+          <label>
+            Travel radius
+            <input type="text" name="travelRadius" placeholder="e.g. 15 km">
+          </label>
+          <label class="full-width">
+            Internal notes
+            <textarea name="notes" rows="4" placeholder="Add notes you want saved"></textarea>
+          </label>
+          <button type="submit" class="button button-primary full-width">Save settings</button>
+          <p class="form-message" id="mechanicSettingsMessage" aria-live="polite"></p>
+        </form>
       </div>
     </section>
   </main>
@@ -162,8 +160,8 @@
       </div>
       <div class="footer-links">
         <a href="#overview">Overview</a>
-        <a href="#profile">Service Profile</a>
-        <a href="#workflow">Work Flow</a>
+        <a href="#profile">Profile</a>
+        <a href="#workflow">Settings</a>
       </div>
     </div>
   </footer>

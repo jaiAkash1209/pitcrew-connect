@@ -28,35 +28,27 @@
         <a href="#bookings-board">Bookings</a>
         <a href="#mechanics-board">Mechanics</a>
         <a href="#users-board">Users</a>
+        <a href="#settings">Settings</a>
       </nav>
       <a class="nav-cta logout-link" href="login.html">Logout</a>
     </div>
   </header>
 
   <main>
-    <section class="hero inner-hero" id="overview">
-      <div class="container hero-grid">
-        <div class="hero-copy">
+    <section class="section dashboard-top" id="overview">
+      <div class="container dashboard-header">
+        <div>
           <p class="eyebrow">Admin Dashboard</p>
-          <h1>Review platform activity with a simple control layout.</h1>
-          <p class="hero-text" id="dashboardWelcome">
-            Use this dashboard to review customer bookings and mechanic submissions without extra clutter.
-          </p>
-          <div class="hero-actions">
-            <button class="button button-primary" id="refreshAdminButton" type="button">Refresh data</button>
-          </div>
-          <p class="form-message" id="adminStatus" aria-live="polite"></p>
+          <h1 class="dashboard-title">Platform Control</h1>
+          <p class="dashboard-subtitle" id="dashboardWelcome">Review activity and update settings.</p>
         </div>
-
-        <div class="panel-card">
-          <p class="mini-label">Admin sections</p>
-          <h2>Grouped into only the main tasks.</h2>
-          <ul class="feature-list">
-            <li>Review bookings</li>
-            <li>Review mechanic profiles</li>
-            <li>Keep activity visible</li>
-          </ul>
+        <div class="dashboard-actions">
+          <button class="button button-primary" id="refreshAdminButton" type="button">Refresh data</button>
+          <a class="button button-secondary" href="#settings">Settings</a>
         </div>
+      </div>
+      <div class="container">
+        <p class="form-message admin-status-row" id="adminStatus" aria-live="polite"></p>
       </div>
     </section>
 
@@ -107,6 +99,48 @@
         </div>
       </div>
     </section>
+
+    <section class="section muted-section" id="settings">
+      <div class="container">
+        <div class="section-heading left">
+          <p class="eyebrow">Settings</p>
+          <h2>Update platform preferences</h2>
+          <p>Keep admin controls simple and grouped.</p>
+        </div>
+        <form class="request-form compact-form" id="adminSettingsForm">
+          <label>
+            Booking priority
+            <select name="bookingPriority">
+              <option value="Urgency first">Urgency first</option>
+              <option value="Latest first">Latest first</option>
+              <option value="Manual review">Manual review</option>
+            </select>
+          </label>
+          <label>
+            Mechanic approval
+            <select name="mechanicApproval">
+              <option value="Manual">Manual</option>
+              <option value="Review then publish">Review then publish</option>
+              <option value="Internal only">Internal only</option>
+            </select>
+          </label>
+          <label>
+            Support contact
+            <input type="text" name="supportContact" placeholder="Email or phone">
+          </label>
+          <label>
+            Default city
+            <input type="text" name="defaultCity" placeholder="Enter city">
+          </label>
+          <label class="full-width">
+            Admin notes
+            <textarea name="notes" rows="4" placeholder="Add notes you want saved"></textarea>
+          </label>
+          <button type="submit" class="button button-primary full-width">Save settings</button>
+          <p class="form-message" id="adminSettingsMessage" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -123,6 +157,7 @@
         <a href="#bookings-board">Bookings</a>
         <a href="#mechanics-board">Mechanics</a>
         <a href="#users-board">Users</a>
+        <a href="#settings">Settings</a>
       </div>
     </div>
   </footer>

@@ -20,6 +20,12 @@ const dashboardWelcome = document.getElementById("dashboardWelcome");
 const logoutLinks = document.querySelectorAll(".logout-link");
 const dashboardRole = document.body?.dataset?.dashboardRole || "";
 const usersList = document.getElementById("usersList");
+const userSettingsForm = document.getElementById("userSettingsForm");
+const userSettingsMessage = document.getElementById("userSettingsMessage");
+const mechanicSettingsForm = document.getElementById("mechanicSettingsForm");
+const mechanicSettingsMessage = document.getElementById("mechanicSettingsMessage");
+const adminSettingsForm = document.getElementById("adminSettingsForm");
+const adminSettingsMessage = document.getElementById("adminSettingsMessage");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
 const THEME_STORAGE_KEY = "pitcrew_theme";
@@ -51,6 +57,10 @@ function getDashboardPath(role) {
   }
 
   return "user.html";
+}
+
+function getSettingsStorageKey(formId) {
+  return `pitcrew_settings_${formId}`;
 }
 
 function getTheme() {
@@ -100,6 +110,46 @@ function applyRoleSelection(role) {
   selectedRoleInput.value = role;
   roleCards.forEach((card) => {
     card.classList.toggle("active", card.dataset.roleCard === role);
+  });
+}
+
+function loadFormSettings(form) {
+  if (!form || !form.id) {
+    return;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(getSettingsStorageKey(form.id));
+    if (!raw) {
+      return;
+    }
+
+    const values = JSON.parse(raw);
+    Object.entries(values).forEach(([key, value]) => {
+      const field = form.elements.namedItem(key);
+      if (field) {
+        field.value = value;
+      }
+    });
+  } catch (error) {
+    return;
+  }
+}
+
+function attachSettingsForm(form, messageElement) {
+  if (!form || !messageElement) {
+    return;
+  }
+
+  loadFormSettings(form);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    window.localStorage.setItem(getSettingsStorageKey(form.id), JSON.stringify(payload));
+    messageElement.textContent = "Settings saved.";
   });
 }
 
@@ -314,6 +364,10 @@ if (dashboardRole) {
 if (dashboardRole === "admin" && bookingsList && mechanicsList && usersList) {
   loadAdminData();
 }
+
+attachSettingsForm(userSettingsForm, userSettingsMessage);
+attachSettingsForm(mechanicSettingsForm, mechanicSettingsMessage);
+attachSettingsForm(adminSettingsForm, adminSettingsMessage);
 
 logoutLinks.forEach((link) => {
   link.addEventListener("click", () => {

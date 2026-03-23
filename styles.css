@@ -149,6 +149,10 @@ button {
   padding: 5rem 0 3rem;
 }
 
+.dashboard-top {
+  padding-bottom: 2rem;
+}
+
 .inner-hero {
   padding-bottom: 2rem;
 }
@@ -181,6 +185,16 @@ h1 {
   font-family: "Space Grotesk", sans-serif;
   font-size: clamp(3rem, 7vw, 5.2rem);
   max-width: 12ch;
+}
+
+.dashboard-title {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  max-width: none;
+}
+
+.dashboard-subtitle {
+  margin-top: 0.5rem;
+  color: var(--muted);
 }
 
 h2 {
@@ -435,6 +449,19 @@ label,
   align-items: start;
 }
 
+.dashboard-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  align-items: end;
+}
+
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .login-form {
   max-width: 34rem;
   margin: 2rem auto 0;
@@ -479,6 +506,10 @@ label,
   gap: 1rem;
   padding: 1.5rem;
   border-radius: 1.6rem;
+}
+
+.compact-form {
+  max-width: 56rem;
 }
 
 label {
@@ -568,11 +599,16 @@ textarea:focus {
   color: var(--muted);
 }
 
+.admin-status-row {
+  margin-top: 0.5rem;
+}
+
 @media (max-width: 920px) {
   .nav-shell,
   .hero-grid,
   .split-grid,
   .request-grid,
+  .dashboard-header,
   .service-grid,
   .mechanic-benefits,
   .admin-grid,

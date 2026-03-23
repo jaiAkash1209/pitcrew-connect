@@ -25,46 +25,24 @@
       </a>
       <nav class="site-nav">
         <a href="#overview">Overview</a>
-        <a href="#request">Request Service</a>
-        <a href="#support">Support</a>
+        <a href="#request">Request</a>
+        <a href="#settings">Settings</a>
       </nav>
       <a class="nav-cta logout-link" href="login.html">Logout</a>
     </div>
   </header>
 
   <main>
-    <section class="hero inner-hero" id="overview">
-      <div class="container hero-grid">
-        <div class="hero-copy">
+    <section class="section dashboard-top" id="overview">
+      <div class="container dashboard-header">
+        <div>
           <p class="eyebrow">User Dashboard</p>
-          <h1>Manage your vehicle service requests clearly.</h1>
-          <p class="hero-text" id="dashboardWelcome">
-            Use this dashboard to create a new request and keep your service information organized.
-          </p>
-          <div class="hero-stats">
-            <article>
-              <strong>New Request</strong>
-              <span>Submit roadside, garage, or home-service needs</span>
-            </article>
-            <article>
-              <strong>Current Status</strong>
-              <span>Keep service details in one place</span>
-            </article>
-            <article>
-              <strong>Support</strong>
-              <span>Use the right category for faster handling</span>
-            </article>
-          </div>
+          <h1 class="dashboard-title">Service Requests</h1>
+          <p class="dashboard-subtitle" id="dashboardWelcome">Manage requests and preferences.</p>
         </div>
-
-        <div class="panel-card">
-          <p class="mini-label">Dashboard sections</p>
-          <h2>Simple options with no extra clutter.</h2>
-          <ul class="feature-list">
-            <li>Request service</li>
-            <li>View request guidance</li>
-            <li>Use the right support category</li>
-          </ul>
+        <div class="dashboard-actions">
+          <a class="button button-secondary" href="#request">New request</a>
+          <a class="button button-secondary" href="#settings">Settings</a>
         </div>
       </div>
     </section>
@@ -124,27 +102,45 @@
       </div>
     </section>
 
-    <section class="section muted-section" id="support">
+    <section class="section muted-section" id="settings">
       <div class="container">
         <div class="section-heading left">
-          <p class="eyebrow">Support guide</p>
-          <h2>Choose the right service type</h2>
-          <p>Keep choices simple so the request reaches the right team faster.</p>
+          <p class="eyebrow">Settings</p>
+          <h2>Customize your dashboard</h2>
+          <p>Save the details you want to update.</p>
         </div>
-        <div class="dashboard-section-grid">
-          <article class="service-card">
-            <h3>Roadside support</h3>
-            <p>Use this when the vehicle cannot continue and immediate assistance may be needed.</p>
-          </article>
-          <article class="service-card">
-            <h3>Garage booking</h3>
-            <p>Use this for inspection, repair, diagnostics, or workshop-based service.</p>
-          </article>
-          <article class="service-card">
-            <h3>At-home service</h3>
-            <p>Use this for smaller service jobs that can be completed outside a workshop.</p>
-          </article>
-        </div>
+        <form class="request-form compact-form" id="userSettingsForm">
+          <label>
+            Preferred contact
+            <select name="preferredContact">
+              <option value="Phone">Phone</option>
+              <option value="Email">Email</option>
+              <option value="WhatsApp">WhatsApp</option>
+            </select>
+          </label>
+          <label>
+            Preferred service
+            <select name="preferredService">
+              <option value="Emergency roadside help">Emergency roadside help</option>
+              <option value="Garage repair booking">Garage repair booking</option>
+              <option value="At-home mechanic visit">At-home mechanic visit</option>
+            </select>
+          </label>
+          <label>
+            Default city
+            <input type="text" name="defaultCity" placeholder="Enter city">
+          </label>
+          <label>
+            Vehicle nickname
+            <input type="text" name="vehicleNickname" placeholder="Primary vehicle name">
+          </label>
+          <label class="full-width">
+            Notes
+            <textarea name="notes" rows="4" placeholder="Add notes you want saved"></textarea>
+          </label>
+          <button type="submit" class="button button-primary full-width">Save settings</button>
+          <p class="form-message" id="userSettingsMessage" aria-live="polite"></p>
+        </form>
       </div>
     </section>
   </main>
@@ -160,8 +156,8 @@
       </div>
       <div class="footer-links">
         <a href="#overview">Overview</a>
-        <a href="#request">Request Service</a>
-        <a href="#support">Support</a>
+        <a href="#request">Request</a>
+        <a href="#settings">Settings</a>
       </div>
     </div>
   </footer>
