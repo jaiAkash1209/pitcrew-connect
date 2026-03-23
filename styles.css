@@ -412,6 +412,18 @@ label,
   align-items: start;
 }
 
+.login-shell {
+  display: grid;
+  grid-template-columns: 0.95fr 0.9fr;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.login-form {
+  max-width: 34rem;
+  margin-left: auto;
+}
+
 .cta-section {
   padding-bottom: 6rem;
 }
@@ -516,6 +528,7 @@ textarea:focus {
   .hero-grid,
   .split-grid,
   .request-grid,
+  .login-shell,
   .service-grid,
   .mechanic-benefits,
   .admin-grid,

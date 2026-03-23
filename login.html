@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PitCrew Connect | Login</title>
+  <meta
+    name="description"
+    content="Login page for admin access and role-based entry into PitCrew Connect."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-shell">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">PC</span>
+        <span>PitCrew Connect</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">Home</a>
+        <a href="user.html">Customers</a>
+        <a href="mechanic.html">Mechanics</a>
+      </nav>
+      <a class="nav-cta" href="user.html">Customer page</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero inner-hero">
+      <div class="container login-shell">
+        <div class="hero-copy">
+          <p class="eyebrow">Login</p>
+          <h1>Sign in to continue to the right workspace.</h1>
+          <p class="hero-text">
+            Customers and mechanics can use the public pages directly. Admin access goes through this login page.
+          </p>
+        </div>
+
+        <form class="request-form login-form" id="loginForm">
+          <label>
+            Email
+            <input type="email" name="email" placeholder="Enter your email" required>
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" placeholder="Enter your password" required>
+          </label>
+          <label class="full-width">
+            Role
+            <select name="role" required>
+              <option value="">Select your role</option>
+              <option value="admin">Admin</option>
+              <option value="customer">Customer</option>
+              <option value="mechanic">Mechanic</option>
+            </select>
+          </label>
+          <button type="submit" class="button button-primary full-width">Login</button>
+          <p class="form-message" id="loginMessage" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div>
+        <a class="brand footer-brand" href="index.html">
+          <span class="brand-mark">PC</span>
+          <span>PitCrew Connect</span>
+        </a>
+        <p>Login page for role-based access.</p>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="user.html">Customers</a>
+        <a href="mechanic.html">Mechanics</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

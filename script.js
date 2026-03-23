@@ -10,6 +10,10 @@ const bookingsList = document.getElementById("bookingsList");
 const mechanicsList = document.getElementById("mechanicsList");
 const adminStatus = document.getElementById("adminStatus");
 const refreshAdminButton = document.getElementById("refreshAdminButton");
+const loginForm = document.getElementById("loginForm");
+const loginMessage = document.getElementById("loginMessage");
+
+const ADMIN_SESSION_KEY = "pitcrew_admin_session";
 
 async function submitJson(url, form, messageElement, successText) {
   const formData = new FormData(form);
@@ -128,6 +132,20 @@ async function loadAdminData() {
   }
 }
 
+function isAdminLoggedIn() {
+  return window.localStorage.getItem(ADMIN_SESSION_KEY) === "true";
+}
+
+function requireAdminLogin() {
+  if (!bookingsList || !mechanicsList) {
+    return;
+  }
+
+  if (!isAdminLoggedIn()) {
+    window.location.href = "login.html";
+  }
+}
+
 if (requestForm && formMessage) {
   requestForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -163,6 +181,7 @@ if (refreshAdminButton) {
 }
 
 if (bookingsList && mechanicsList) {
+  requireAdminLogin();
   loadAdminData();
 }
 
@@ -173,5 +192,40 @@ if (mechanicForm && mechanicMessage) {
     await submitJson("/api/mechanics", mechanicForm, mechanicMessage, (payload) =>
       `${payload.name}, your mechanic profile for ${String(payload.service).toLowerCase()} was saved.`
     );
+  });
+}
+
+if (loginForm && loginMessage) {
+  loginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(loginForm);
+    const role = String(formData.get("role") || "");
+
+    if (role === "admin") {
+      window.localStorage.setItem(ADMIN_SESSION_KEY, "true");
+      loginMessage.textContent = "Login successful. Redirecting to admin page...";
+      window.setTimeout(() => {
+        window.location.href = "admin.html";
+      }, 500);
+      return;
+    }
+
+    window.localStorage.removeItem(ADMIN_SESSION_KEY);
+
+    if (role === "customer") {
+      loginMessage.textContent = "Redirecting to customer page...";
+      window.setTimeout(() => {
+        window.location.href = "user.html";
+      }, 500);
+      return;
+    }
+
+    if (role === "mechanic") {
+      loginMessage.textContent = "Redirecting to mechanic page...";
+      window.setTimeout(() => {
+        window.location.href = "mechanic.html";
+      }, 500);
+    }
   });
 }
