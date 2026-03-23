@@ -9,6 +9,7 @@ const dataDir = path.join(__dirname, "data");
 const bookingsPath = path.join(dataDir, "bookings.json");
 const mechanicsPath = path.join(dataDir, "mechanics.json");
 const usersPath = path.join(dataDir, "users.json");
+const trackingPath = path.join(dataDir, "tracking.json");
 
 function ensureFile(filePath) {
   if (!fs.existsSync(dataDir)) {
@@ -89,9 +90,34 @@ function createUserAccount(payload) {
   };
 }
 
+function writeTracker(payload) {
+  const trackers = readRecords(trackingPath);
+  const trackerId = String(payload.trackerId || "");
+  const nextRecord = {
+    trackerId,
+    role: payload.role || "",
+    name: payload.name || "",
+    latitude: Number(payload.latitude || 0),
+    longitude: Number(payload.longitude || 0),
+    accuracy: Number(payload.accuracy || 0),
+    updatedAt: new Date().toISOString()
+  };
+
+  const index = trackers.findIndex((item) => String(item.trackerId || "") === trackerId);
+  if (index >= 0) {
+    trackers[index] = nextRecord;
+  } else {
+    trackers.push(nextRecord);
+  }
+
+  fs.writeFileSync(trackingPath, JSON.stringify(trackers, null, 2), "utf8");
+  return nextRecord;
+}
+
 ensureFile(bookingsPath);
 ensureFile(mechanicsPath);
 ensureFile(usersPath);
+ensureFile(trackingPath);
 
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -177,6 +203,38 @@ app.post("/api/users/register", (req, res) => {
       email: user.email,
       role: user.role
     }
+  });
+});
+
+app.get("/api/tracking", (req, res) => {
+  res.json(readRecords(trackingPath));
+});
+
+app.post("/api/tracking/update", (req, res) => {
+  const trackerId = String(req.body?.trackerId || "").trim();
+  const latitude = Number(req.body?.latitude);
+  const longitude = Number(req.body?.longitude);
+
+  if (!trackerId || Number.isNaN(latitude) || Number.isNaN(longitude)) {
+    res.status(400).json({
+      ok: false,
+      error: "trackerId, latitude, and longitude are required"
+    });
+    return;
+  }
+
+  const tracker = writeTracker({
+    trackerId,
+    role: String(req.body?.role || ""),
+    name: String(req.body?.name || ""),
+    latitude,
+    longitude,
+    accuracy: Number(req.body?.accuracy || 0)
+  });
+
+  res.json({
+    ok: true,
+    tracker
   });
 });
 

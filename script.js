@@ -26,9 +26,25 @@ const mechanicSettingsForm = document.getElementById("mechanicSettingsForm");
 const mechanicSettingsMessage = document.getElementById("mechanicSettingsMessage");
 const adminSettingsForm = document.getElementById("adminSettingsForm");
 const adminSettingsMessage = document.getElementById("adminSettingsMessage");
+const trackingList = document.getElementById("trackingList");
+const trackingStatus = document.getElementById("trackingStatus");
+const trackingRole = document.getElementById("trackingRole");
+const trackingName = document.getElementById("trackingName");
+const trackingLatitude = document.getElementById("trackingLatitude");
+const trackingLongitude = document.getElementById("trackingLongitude");
+const trackingAccuracy = document.getElementById("trackingAccuracy");
+const trackingUpdatedAt = document.getElementById("trackingUpdatedAt");
+const startTrackingButton = document.getElementById("startTrackingButton");
+const stopTrackingButton = document.getElementById("stopTrackingButton");
+const trackingMapElement = document.getElementById("trackingMap");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
 const THEME_STORAGE_KEY = "pitcrew_theme";
+const TRACKER_STORAGE_KEY = "pitcrew_tracker_id";
+let trackingWatcherId = null;
+let trackingPollId = null;
+let trackingMap = null;
+let trackingMarkers = new Map();
 
 function setAuth(auth) {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
@@ -65,6 +81,15 @@ function getSettingsStorageKey(formId) {
 
 function getTheme() {
   return window.localStorage.getItem(THEME_STORAGE_KEY) || "light";
+}
+
+function getTrackerId() {
+  let trackerId = window.localStorage.getItem(TRACKER_STORAGE_KEY);
+  if (!trackerId) {
+    trackerId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    window.localStorage.setItem(TRACKER_STORAGE_KEY, trackerId);
+  }
+  return trackerId;
 }
 
 function applyTheme(theme) {
@@ -236,6 +261,21 @@ function renderCards(listElement, records, type) {
         `;
       }
 
+      if (type === "tracking") {
+        return `
+          <article class="tracking-feed-card">
+            <h3>${escapeHtml(record.name || "Unknown tracker")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.role || "No role")}</span>
+              <span>${escapeHtml(record.updatedAt || "No update time")}</span>
+            </div>
+            <p><strong>Latitude:</strong> ${escapeHtml(record.latitude ?? "-")}</p>
+            <p><strong>Longitude:</strong> ${escapeHtml(record.longitude ?? "-")}</p>
+            <p><strong>Accuracy:</strong> ${escapeHtml(record.accuracy ?? "-")}</p>
+          </article>
+        `;
+      }
+
       return `
         <article class="admin-card">
           <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
@@ -251,6 +291,71 @@ function renderCards(listElement, records, type) {
       `;
     })
     .join("");
+}
+
+function ensureTrackingMap() {
+  if (!trackingMapElement || typeof window.L === "undefined" || trackingMap) {
+    return;
+  }
+
+  trackingMap = window.L.map(trackingMapElement).setView([20.5937, 78.9629], 5);
+  window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(trackingMap);
+}
+
+function updateTrackingMap(trackers) {
+  if (!trackingMapElement || typeof window.L === "undefined") {
+    return;
+  }
+
+  ensureTrackingMap();
+  if (!trackingMap) {
+    return;
+  }
+
+  const activeIds = new Set();
+  const bounds = [];
+
+  trackers.forEach((tracker) => {
+    const latitude = Number(tracker.latitude);
+    const longitude = Number(tracker.longitude);
+    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      return;
+    }
+
+    const trackerId = String(tracker.trackerId || "");
+    activeIds.add(trackerId);
+    bounds.push([latitude, longitude]);
+
+    const popup = `
+      <strong>${escapeHtml(tracker.name || "Unknown tracker")}</strong><br>
+      Role: ${escapeHtml(tracker.role || "-")}<br>
+      Updated: ${escapeHtml(tracker.updatedAt || "-")}
+    `;
+
+    const marker = trackingMarkers.get(trackerId);
+    if (marker) {
+      marker.setLatLng([latitude, longitude]).bindPopup(popup);
+      return;
+    }
+
+    const nextMarker = window.L.marker([latitude, longitude]).addTo(trackingMap).bindPopup(popup);
+    trackingMarkers.set(trackerId, nextMarker);
+  });
+
+  trackingMarkers.forEach((marker, trackerId) => {
+    if (!activeIds.has(trackerId)) {
+      trackingMap.removeLayer(marker);
+      trackingMarkers.delete(trackerId);
+    }
+  });
+
+  if (bounds.length === 1) {
+    trackingMap.setView(bounds[0], 14);
+  } else if (bounds.length > 1) {
+    trackingMap.fitBounds(bounds, { padding: [30, 30] });
+  }
 }
 
 async function loadAdminData() {
@@ -295,7 +400,7 @@ function requireDashboardAccess(requiredRole) {
   }
 
   const auth = getAuth();
-  if (!auth || auth.role !== requiredRole) {
+  if (!auth || (requiredRole !== "auth" && auth.role !== requiredRole)) {
     window.location.href = "login.html";
     return;
   }
@@ -303,6 +408,121 @@ function requireDashboardAccess(requiredRole) {
   if (dashboardWelcome) {
     dashboardWelcome.textContent = `${auth.name}, this is your ${requiredRole} dashboard.`;
   }
+}
+
+async function refreshTrackingFeed() {
+  if (!trackingList) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/tracking");
+    if (!response.ok) {
+      throw new Error("Tracking fetch failed");
+    }
+
+    const trackers = await response.json();
+    const records = Array.isArray(trackers) ? trackers : [];
+    renderCards(trackingList, records, "tracking");
+    updateTrackingMap(records);
+  } catch (error) {
+    if (trackingStatus) {
+      trackingStatus.textContent = "Could not load tracking feed.";
+    }
+  }
+}
+
+async function sendTrackingPosition(position) {
+  const auth = getAuth();
+  if (!auth) {
+    return;
+  }
+
+  const payload = {
+    trackerId: getTrackerId(),
+    role: auth.role,
+    name: auth.name,
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracy: position.coords.accuracy
+  };
+
+  const response = await fetch("/api/tracking/update", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error("Tracking update failed");
+  }
+
+  trackingRole.textContent = `Role: ${auth.role}`;
+  trackingName.textContent = `Name: ${auth.name}`;
+  trackingLatitude.textContent = String(position.coords.latitude);
+  trackingLongitude.textContent = String(position.coords.longitude);
+  trackingAccuracy.textContent = `${Math.round(position.coords.accuracy)} m`;
+  trackingUpdatedAt.textContent = new Date().toLocaleString();
+  if (trackingStatus) {
+    trackingStatus.textContent = "Tracking is live.";
+  }
+}
+
+function stopTracking() {
+  if (trackingWatcherId !== null) {
+    navigator.geolocation.clearWatch(trackingWatcherId);
+    trackingWatcherId = null;
+  }
+
+  if (trackingPollId !== null) {
+    window.clearInterval(trackingPollId);
+    trackingPollId = null;
+  }
+
+  if (trackingStatus) {
+    trackingStatus.textContent = "Tracking stopped.";
+  }
+}
+
+function startTracking() {
+  if (!navigator.geolocation) {
+    if (trackingStatus) {
+      trackingStatus.textContent = "Geolocation is not available on this device.";
+    }
+    return;
+  }
+
+  stopTracking();
+  if (trackingStatus) {
+    trackingStatus.textContent = "Starting tracking...";
+  }
+
+  trackingWatcherId = navigator.geolocation.watchPosition(
+    async (position) => {
+      try {
+        await sendTrackingPosition(position);
+        refreshTrackingFeed();
+      } catch (error) {
+        if (trackingStatus) {
+          trackingStatus.textContent = "Could not update live tracking.";
+        }
+      }
+    },
+    () => {
+      if (trackingStatus) {
+        trackingStatus.textContent = "Location permission is required for live tracking.";
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 10000
+    }
+  );
+
+  trackingPollId = window.setInterval(refreshTrackingFeed, 5000);
 }
 
 if (roleCards.length && selectedRoleInput) {
@@ -365,9 +585,22 @@ if (dashboardRole === "admin" && bookingsList && mechanicsList && usersList) {
   loadAdminData();
 }
 
+if (dashboardRole === "auth" && trackingList) {
+  refreshTrackingFeed();
+  trackingPollId = window.setInterval(refreshTrackingFeed, 5000);
+}
+
 attachSettingsForm(userSettingsForm, userSettingsMessage);
 attachSettingsForm(mechanicSettingsForm, mechanicSettingsMessage);
 attachSettingsForm(adminSettingsForm, adminSettingsMessage);
+
+if (startTrackingButton) {
+  startTrackingButton.addEventListener("click", startTracking);
+}
+
+if (stopTrackingButton) {
+  stopTrackingButton.addEventListener("click", stopTracking);
+}
 
 logoutLinks.forEach((link) => {
   link.addEventListener("click", () => {

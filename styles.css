@@ -603,6 +603,43 @@ textarea:focus {
   margin-top: 0.5rem;
 }
 
+.tracking-feed-card {
+  padding: 1.4rem;
+  border-radius: 1.4rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.tracking-map-shell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1.6rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.tracking-map {
+  min-height: 26rem;
+}
+
+body.theme-dark .site-header {
+  background: rgba(16, 22, 29, 0.82);
+}
+
+body.theme-dark .button-secondary,
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+  background: rgba(18, 24, 32, 0.9);
+  border-color: rgba(236, 242, 248, 0.14);
+}
+
+body.theme-dark .admin-meta span,
+body.theme-dark .status-pill {
+  background: rgba(216, 232, 248, 0.12);
+}
+
 @media (max-width: 920px) {
   .nav-shell,
   .hero-grid,
