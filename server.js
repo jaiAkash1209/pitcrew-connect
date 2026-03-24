@@ -114,6 +114,70 @@ function writeTracker(payload) {
   return nextRecord;
 }
 
+function toRadians(value) {
+  return (value * Math.PI) / 180;
+}
+
+function calculateDistanceKm(pointA, pointB) {
+  const earthRadiusKm = 6371;
+  const latDelta = toRadians(pointB.latitude - pointA.latitude);
+  const lonDelta = toRadians(pointB.longitude - pointA.longitude);
+  const latA = toRadians(pointA.latitude);
+  const latB = toRadians(pointB.latitude);
+
+  const haversine =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(latA) * Math.cos(latB) * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
+
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function getTrackingMatches() {
+  const trackers = readRecords(trackingPath).filter((tracker) => {
+    return !Number.isNaN(Number(tracker.latitude)) && !Number.isNaN(Number(tracker.longitude));
+  });
+
+  const mechanics = trackers.filter((tracker) => String(tracker.role || "").toLowerCase() === "mechanic");
+  const users = trackers.filter((tracker) => String(tracker.role || "").toLowerCase() === "user");
+  const assignedMechanics = new Set();
+
+  return users
+    .map((user) => {
+      let bestMechanic = null;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      mechanics.forEach((mechanic) => {
+        if (assignedMechanics.has(mechanic.trackerId)) {
+          return;
+        }
+
+        const distanceKm = calculateDistanceKm(
+          { latitude: Number(user.latitude), longitude: Number(user.longitude) },
+          { latitude: Number(mechanic.latitude), longitude: Number(mechanic.longitude) }
+        );
+
+        if (distanceKm < bestDistance) {
+          bestDistance = distanceKm;
+          bestMechanic = mechanic;
+        }
+      });
+
+      if (!bestMechanic) {
+        return null;
+      }
+
+      assignedMechanics.add(bestMechanic.trackerId);
+
+      return {
+        id: `${user.trackerId}-${bestMechanic.trackerId}`,
+        distanceKm: Number(bestDistance.toFixed(2)),
+        user,
+        mechanic: bestMechanic
+      };
+    })
+    .filter(Boolean);
+}
+
 ensureFile(bookingsPath);
 ensureFile(mechanicsPath);
 ensureFile(usersPath);
@@ -208,6 +272,10 @@ app.post("/api/users/register", (req, res) => {
 
 app.get("/api/tracking", (req, res) => {
   res.json(readRecords(trackingPath));
+});
+
+app.get("/api/tracking/matches", (req, res) => {
+  res.json(getTrackingMatches());
 });
 
 app.post("/api/tracking/update", (req, res) => {

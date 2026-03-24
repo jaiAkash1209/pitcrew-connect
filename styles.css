@@ -623,6 +623,11 @@ textarea:focus {
   min-height: 26rem;
 }
 
+.dashboard-section-grid > div {
+  display: grid;
+  gap: 1rem;
+}
+
 body.theme-dark .site-header {
   background: rgba(16, 22, 29, 0.82);
 }

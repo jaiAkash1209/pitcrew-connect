@@ -37,6 +37,9 @@ const trackingUpdatedAt = document.getElementById("trackingUpdatedAt");
 const startTrackingButton = document.getElementById("startTrackingButton");
 const stopTrackingButton = document.getElementById("stopTrackingButton");
 const trackingMapElement = document.getElementById("trackingMap");
+const trackingMatchesList = document.getElementById("trackingMatchesList");
+const adminTrackingList = document.getElementById("adminTrackingList");
+const adminMatchesList = document.getElementById("adminMatchesList");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
 const THEME_STORAGE_KEY = "pitcrew_theme";
@@ -45,6 +48,7 @@ let trackingWatcherId = null;
 let trackingPollId = null;
 let trackingMap = null;
 let trackingMarkers = new Map();
+let trackingRoutes = new Map();
 
 function setAuth(auth) {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
@@ -276,6 +280,22 @@ function renderCards(listElement, records, type) {
         `;
       }
 
+      if (type === "matches") {
+        return `
+          <article class="admin-card">
+            <h3>${escapeHtml(record.user?.name || "Unknown user")} -> ${escapeHtml(record.mechanic?.name || "Unknown mechanic")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.distanceKm ?? "-")} km</span>
+              <span>${escapeHtml(record.mechanic?.role || "mechanic")}</span>
+              <span>${escapeHtml(record.user?.role || "user")}</span>
+            </div>
+            <p><strong>User:</strong> ${escapeHtml(record.user?.name || "-")}</p>
+            <p><strong>Mechanic:</strong> ${escapeHtml(record.mechanic?.name || "-")}</p>
+            <p><strong>Distance:</strong> ${escapeHtml(record.distanceKm ?? "-")} km</p>
+          </article>
+        `;
+      }
+
       return `
         <article class="admin-card">
           <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
@@ -304,7 +324,7 @@ function ensureTrackingMap() {
   }).addTo(trackingMap);
 }
 
-function updateTrackingMap(trackers) {
+function updateTrackingMap(trackers, matches) {
   if (!trackingMapElement || typeof window.L === "undefined") {
     return;
   }
@@ -356,6 +376,62 @@ function updateTrackingMap(trackers) {
   } else if (bounds.length > 1) {
     trackingMap.fitBounds(bounds, { padding: [30, 30] });
   }
+
+  const activeRouteIds = new Set();
+  (matches || []).forEach((match) => {
+    const userLatitude = Number(match.user?.latitude);
+    const userLongitude = Number(match.user?.longitude);
+    const mechanicLatitude = Number(match.mechanic?.latitude);
+    const mechanicLongitude = Number(match.mechanic?.longitude);
+    if (
+      Number.isNaN(userLatitude) ||
+      Number.isNaN(userLongitude) ||
+      Number.isNaN(mechanicLatitude) ||
+      Number.isNaN(mechanicLongitude)
+    ) {
+      return;
+    }
+
+    const routeId = String(match.id || `${match.user?.trackerId}-${match.mechanic?.trackerId}`);
+    activeRouteIds.add(routeId);
+
+    const routePoints = [
+      [userLatitude, userLongitude],
+      [mechanicLatitude, mechanicLongitude]
+    ];
+    const routeLine = trackingRoutes.get(routeId);
+
+    if (routeLine) {
+      routeLine.setLatLngs(routePoints);
+      return;
+    }
+
+    const nextRoute = window.L.polyline(routePoints, {
+      color: "#ff6b2c",
+      weight: 4,
+      opacity: 0.75,
+      dashArray: "10 8"
+    }).addTo(trackingMap);
+
+    trackingRoutes.set(routeId, nextRoute);
+  });
+
+  trackingRoutes.forEach((routeLine, routeId) => {
+    if (!activeRouteIds.has(routeId)) {
+      trackingMap.removeLayer(routeLine);
+      trackingRoutes.delete(routeId);
+    }
+  });
+}
+
+async function loadTrackingMatches() {
+  const response = await fetch("/api/tracking/matches");
+  if (!response.ok) {
+    throw new Error("Matches fetch failed");
+  }
+
+  const matches = await response.json();
+  return Array.isArray(matches) ? matches : [];
 }
 
 async function loadAdminData() {
@@ -366,25 +442,30 @@ async function loadAdminData() {
   adminStatus.textContent = "Refreshing dashboard...";
 
   try {
-    const [bookingsResponse, mechanicsResponse, usersResponse] = await Promise.all([
+    const [bookingsResponse, mechanicsResponse, usersResponse, trackingResponse, matches] = await Promise.all([
       fetch("/api/bookings"),
       fetch("/api/mechanics"),
-      fetch("/api/users")
+      fetch("/api/users"),
+      fetch("/api/tracking"),
+      loadTrackingMatches()
     ]);
 
-    if (!bookingsResponse.ok || !mechanicsResponse.ok || !usersResponse.ok) {
+    if (!bookingsResponse.ok || !mechanicsResponse.ok || !usersResponse.ok || !trackingResponse.ok) {
       throw new Error("Dashboard fetch failed");
     }
 
-    const [bookings, mechanics, users] = await Promise.all([
+    const [bookings, mechanics, users, trackers] = await Promise.all([
       bookingsResponse.json(),
       mechanicsResponse.json(),
-      usersResponse.json()
+      usersResponse.json(),
+      trackingResponse.json()
     ]);
 
     renderCards(bookingsList, Array.isArray(bookings) ? bookings : [], "bookings");
     renderCards(mechanicsList, Array.isArray(mechanics) ? mechanics : [], "mechanics");
     renderCards(usersList, Array.isArray(users) ? users : [], "users");
+    renderCards(adminTrackingList, Array.isArray(trackers) ? trackers : [], "tracking");
+    renderCards(adminMatchesList, matches, "matches");
     adminStatus.textContent = "Dashboard updated.";
   } catch (error) {
     adminStatus.textContent = "Could not load admin data right now.";
@@ -411,12 +492,15 @@ function requireDashboardAccess(requiredRole) {
 }
 
 async function refreshTrackingFeed() {
-  if (!trackingList) {
+  if (!trackingList && !trackingMatchesList) {
     return;
   }
 
   try {
-    const response = await fetch("/api/tracking");
+    const [response, matches] = await Promise.all([
+      fetch("/api/tracking"),
+      loadTrackingMatches()
+    ]);
     if (!response.ok) {
       throw new Error("Tracking fetch failed");
     }
@@ -424,7 +508,8 @@ async function refreshTrackingFeed() {
     const trackers = await response.json();
     const records = Array.isArray(trackers) ? trackers : [];
     renderCards(trackingList, records, "tracking");
-    updateTrackingMap(records);
+    renderCards(trackingMatchesList, matches, "matches");
+    updateTrackingMap(records, matches);
   } catch (error) {
     if (trackingStatus) {
       trackingStatus.textContent = "Could not load tracking feed.";

@@ -19,6 +19,7 @@
         <a href="#overview">Overview</a>
         <a href="#share">Share Location</a>
         <a href="#map-view">Map</a>
+        <a href="#matches">Matches</a>
         <a href="#live-feed">Live Feed</a>
       </nav>
       <a class="nav-cta logout-link" href="login.html">Logout</a>
@@ -75,6 +76,22 @@
       </div>
     </section>
 
+    <section class="section muted-section" id="matches">
+      <div class="container">
+        <div class="section-heading left">
+          <p class="eyebrow">Matching</p>
+          <h2>Nearest mechanic suggestions</h2>
+          <p>Users are paired with the closest tracked mechanic available in the live feed.</p>
+        </div>
+        <div class="admin-grid" id="trackingMatchesList">
+          <article class="empty-state">
+            <h3>No matches yet</h3>
+            <p>Live matches will appear when at least one user and one mechanic share tracking.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <section class="section muted-section" id="live-feed">
       <div class="container">
         <div class="section-heading left">
@@ -91,7 +108,7 @@
       </div>
     </section>
   </main>
-  <footer class="site-footer"><div class="container footer-shell"><div><a class="brand footer-brand" href="index.html"><span class="brand-mark">PC</span><span>PitCrew Connect</span></a><p>Live GPS tracking page.</p></div><div class="footer-links"><a href="#overview">Overview</a><a href="#share">Share</a><a href="#map-view">Map</a><a href="#live-feed">Live Feed</a></div></div></footer>
+  <footer class="site-footer"><div class="container footer-shell"><div><a class="brand footer-brand" href="index.html"><span class="brand-mark">PC</span><span>PitCrew Connect</span></a><p>Live GPS tracking page.</p></div><div class="footer-links"><a href="#overview">Overview</a><a href="#share">Share</a><a href="#map-view">Map</a><a href="#matches">Matches</a><a href="#live-feed">Live Feed</a></div></div></footer>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="script.js"></script>
 </body>
