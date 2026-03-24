@@ -627,6 +627,10 @@ textarea:focus {
   margin-bottom: 1.5rem;
 }
 
+.tracking-info-card {
+  align-self: start;
+}
+
 .dashboard-section-grid > div {
   display: grid;
   gap: 1rem;

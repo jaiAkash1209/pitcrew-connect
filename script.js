@@ -40,6 +40,10 @@ const trackingMapElement = document.getElementById("trackingMap");
 const trackingMatchesList = document.getElementById("trackingMatchesList");
 const adminTrackingList = document.getElementById("adminTrackingList");
 const adminMatchesList = document.getElementById("adminMatchesList");
+const roleTrackingTitle = document.getElementById("roleTrackingTitle");
+const roleTrackingPrimary = document.getElementById("roleTrackingPrimary");
+const roleTrackingSecondary = document.getElementById("roleTrackingSecondary");
+const roleTrackingDescription = document.getElementById("roleTrackingDescription");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
 const THEME_STORAGE_KEY = "pitcrew_theme";
@@ -424,6 +428,38 @@ function updateTrackingMap(trackers, matches) {
   });
 }
 
+function renderRoleTrackingMatch(match) {
+  if (!roleTrackingTitle || !roleTrackingPrimary || !roleTrackingSecondary || !roleTrackingDescription) {
+    return;
+  }
+
+  if (!match) {
+    roleTrackingTitle.textContent = "Waiting for live match";
+    roleTrackingPrimary.textContent = dashboardRole === "mechanic" ? "User: -" : "Mechanic: -";
+    roleTrackingSecondary.textContent = "Distance: -";
+    roleTrackingDescription.textContent =
+      dashboardRole === "mechanic"
+        ? "Once the user enables live tracking, the destination route will appear here."
+        : "Start live tracking on both user and mechanic accounts to show the route here.";
+    return;
+  }
+
+  if (dashboardRole === "mechanic") {
+    roleTrackingTitle.textContent = "Customer destination is live";
+    roleTrackingPrimary.textContent = `User: ${match.user?.name || "-"}`;
+    roleTrackingSecondary.textContent = `Distance: ${match.distanceKm ?? "-"} km`;
+    roleTrackingDescription.textContent =
+      `Follow the route line on the map to reach ${match.user?.name || "the user"} at the exact shared position.`;
+    return;
+  }
+
+  roleTrackingTitle.textContent = "Mechanic is on the way";
+  roleTrackingPrimary.textContent = `Mechanic: ${match.mechanic?.name || "-"}`;
+  roleTrackingSecondary.textContent = `Distance: ${match.distanceKm ?? "-"} km`;
+  roleTrackingDescription.textContent =
+    `The map shows the assigned mechanic route to your live location. Keep your tracking enabled for accurate directions.`;
+}
+
 async function loadTrackingMatches() {
   const response = await fetch("/api/tracking/matches");
   if (!response.ok) {
@@ -515,6 +551,43 @@ async function refreshTrackingFeed() {
     if (trackingStatus) {
       trackingStatus.textContent = "Could not load tracking feed.";
     }
+  }
+}
+
+async function loadRoleTrackingMap() {
+  if (!trackingMapElement || (dashboardRole !== "user" && dashboardRole !== "mechanic")) {
+    return;
+  }
+
+  const auth = getAuth();
+  if (!auth) {
+    return;
+  }
+
+  try {
+    const [trackingResponse, matches] = await Promise.all([
+      fetch("/api/tracking"),
+      loadTrackingMatches()
+    ]);
+
+    if (!trackingResponse.ok) {
+      throw new Error("Tracking fetch failed");
+    }
+
+    const trackers = await trackingResponse.json();
+    const trackerId = getTrackerId();
+    const match = matches.find((item) => {
+      if (dashboardRole === "mechanic") {
+        return String(item.mechanic?.trackerId || "") === trackerId;
+      }
+
+      return String(item.user?.trackerId || "") === trackerId;
+    });
+
+    updateTrackingMap(Array.isArray(trackers) ? trackers : [], match ? [match] : []);
+    renderRoleTrackingMatch(match || null);
+  } catch (error) {
+    renderRoleTrackingMatch(null);
   }
 }
 
@@ -674,6 +747,11 @@ if (dashboardRole === "admin" && bookingsList && mechanicsList && usersList) {
 if (dashboardRole === "auth" && trackingList) {
   refreshTrackingFeed();
   trackingPollId = window.setInterval(refreshTrackingFeed, 5000);
+}
+
+if ((dashboardRole === "user" || dashboardRole === "mechanic") && trackingMapElement) {
+  loadRoleTrackingMap();
+  trackingPollId = window.setInterval(loadRoleTrackingMap, 5000);
 }
 
 attachSettingsForm(userSettingsForm, userSettingsMessage);
