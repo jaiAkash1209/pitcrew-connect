@@ -466,6 +466,7 @@ async function loadAdminData() {
     renderCards(usersList, Array.isArray(users) ? users : [], "users");
     renderCards(adminTrackingList, Array.isArray(trackers) ? trackers : [], "tracking");
     renderCards(adminMatchesList, matches, "matches");
+    updateTrackingMap(Array.isArray(trackers) ? trackers : [], matches);
     adminStatus.textContent = "Dashboard updated.";
   } catch (error) {
     adminStatus.textContent = "Could not load admin data right now.";

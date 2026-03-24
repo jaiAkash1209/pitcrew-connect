@@ -623,6 +623,10 @@ textarea:focus {
   min-height: 26rem;
 }
 
+.admin-monitor-map {
+  margin-bottom: 1.5rem;
+}
+
 .dashboard-section-grid > div {
   display: grid;
   gap: 1rem;

@@ -14,6 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
     rel="stylesheet"
   >
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-dashboard-role="admin">
@@ -108,6 +109,9 @@
           <h2>Live monitoring</h2>
           <p>Monitor active GPS positions and suggested mechanic-to-user assignments.</p>
         </div>
+        <div class="tracking-map-shell admin-monitor-map">
+          <div id="trackingMap" class="tracking-map" aria-label="Admin live tracking map"></div>
+        </div>
         <div class="dashboard-section-grid">
           <div>
             <h3>Active trackers</h3>
@@ -194,6 +198,7 @@
     </div>
   </footer>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="script.js"></script>
 </body>
 </html>
