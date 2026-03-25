@@ -27,6 +27,7 @@
       <nav class="site-nav">
         <a href="#overview">Overview</a>
         <a href="#profile">Profile</a>
+        <a href="#jobs">Jobs</a>
         <a href="#customer-location">Customer Map</a>
         <a href="tracking.html">Tracking</a>
         <a href="#workflow">Settings</a>
@@ -45,6 +46,7 @@
         </div>
         <div class="dashboard-actions">
           <a class="button button-secondary" href="#profile">Profile</a>
+          <a class="button button-secondary" href="#jobs">Jobs</a>
           <a class="button button-secondary" href="#customer-location">Customer map</a>
           <a class="button button-secondary" href="tracking.html">Live tracking</a>
           <a class="button button-secondary" href="#workflow">Settings</a>
@@ -72,6 +74,10 @@
             <input type="tel" name="phone" placeholder="Enter your phone number" required>
           </label>
           <label>
+            Email
+            <input type="email" name="email" placeholder="Enter your login email" required>
+          </label>
+          <label>
             Workshop or business name
             <input type="text" name="business" placeholder="Garage or service name" required>
           </label>
@@ -90,6 +96,10 @@
             <input type="text" name="location" placeholder="City or area covered" required>
           </label>
           <label>
+            Shop address
+            <input type="text" name="shopAddress" placeholder="Full workshop address" required>
+          </label>
+          <label>
             Service type
             <select name="service" required>
               <option value="">Select service focus</option>
@@ -103,9 +113,37 @@
             Specialties
             <textarea name="specialties" rows="5" placeholder="Engine, battery, diagnostics, suspension..." required></textarea>
           </label>
+          <label>
+            Aadhaar card photo
+            <input type="file" name="aadhaarPhoto" accept="image/*" required>
+          </label>
+          <label>
+            Shop photo
+            <input type="file" name="shopPhoto" accept="image/*" required>
+          </label>
           <button type="submit" class="button button-primary full-width">Save profile</button>
           <p class="form-message" id="mechanicMessage" aria-live="polite"></p>
         </form>
+      </div>
+    </section>
+
+    <section class="section" id="jobs">
+      <div class="container">
+        <div class="section-heading left">
+          <p class="eyebrow">Rule 02: Job Acceptance</p>
+          <h2>Available jobs for approved mechanics</h2>
+          <p>Jobs can be accepted only after admin verification is complete.</p>
+        </div>
+        <div class="dashboard-actions compact-actions">
+          <button class="button button-primary" id="refreshMechanicJobsButton" type="button">Refresh jobs</button>
+          <p class="form-message" id="mechanicJobsStatus" aria-live="polite"></p>
+        </div>
+        <div class="admin-grid" id="mechanicJobsList">
+          <article class="empty-state">
+            <h3>No jobs loaded yet</h3>
+            <p>Approved mechanics will see open user requests here.</p>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -194,6 +232,7 @@
       <div class="footer-links">
         <a href="#overview">Overview</a>
         <a href="#profile">Profile</a>
+        <a href="#jobs">Jobs</a>
         <a href="#customer-location">Customer map</a>
         <a href="tracking.html">Tracking</a>
         <a href="#workflow">Settings</a>

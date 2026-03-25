@@ -38,13 +38,20 @@
       <div class="container">
         <div class="section-heading">
           <p class="eyebrow">Register</p>
-          <h1>Create a user account</h1>
+          <h1>Create a controlled account</h1>
           <p>
-            User accounts are stored in the platform database and can then access the user dashboard.
+            User accounts open directly. Mechanic accounts enter pending verification and require admin review before job acceptance.
           </p>
         </div>
 
         <form class="request-form login-form centered-form" id="registerForm">
+          <label class="full-width">
+            Account type
+            <select name="role" id="registerRole" required>
+              <option value="user">User account</option>
+              <option value="mechanic">Mechanic account</option>
+            </select>
+          </label>
           <label class="full-width">
             Full name
             <input type="text" name="name" placeholder="Enter your full name" required>
@@ -57,6 +64,46 @@
             Password
             <input type="password" name="password" placeholder="Create a password" required>
           </label>
+          <div class="full-width mechanic-register-fields" id="mechanicRegisterFields" hidden>
+            <div class="request-form nested-form">
+              <label>
+                Phone number
+                <input type="tel" name="phone" placeholder="Enter phone number">
+              </label>
+              <label>
+                Workshop name
+                <input type="text" name="business" placeholder="Enter shop name">
+              </label>
+              <label class="full-width">
+                Shop address
+                <input type="text" name="shopAddress" placeholder="Enter full shop address">
+              </label>
+              <label>
+                Experience
+                <input type="text" name="experience" placeholder="e.g. 6 years">
+              </label>
+              <label>
+                Service area
+                <input type="text" name="location" placeholder="City or area">
+              </label>
+              <label>
+                Service focus
+                <input type="text" name="service" placeholder="Roadside, garage, home visit">
+              </label>
+              <label class="full-width">
+                Specialties
+                <textarea name="specialties" rows="3" placeholder="Diagnostics, electrical, engine..."></textarea>
+              </label>
+              <label>
+                Aadhaar card photo
+                <input type="file" name="aadhaarPhoto" accept="image/*">
+              </label>
+              <label>
+                Shop photo
+                <input type="file" name="shopPhoto" accept="image/*">
+              </label>
+            </div>
+          </div>
           <button type="submit" class="button button-primary full-width">Create account</button>
           <p class="form-message" id="registerMessage" aria-live="polite"></p>
         </form>

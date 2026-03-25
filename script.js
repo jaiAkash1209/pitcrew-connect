@@ -14,6 +14,8 @@ const loginForm = document.getElementById("loginForm");
 const loginMessage = document.getElementById("loginMessage");
 const registerForm = document.getElementById("registerForm");
 const registerMessage = document.getElementById("registerMessage");
+const registerRoleSelect = document.getElementById("registerRole");
+const mechanicRegisterFields = document.getElementById("mechanicRegisterFields");
 const selectedRoleInput = document.getElementById("selectedRole");
 const roleCards = document.querySelectorAll("[data-role-card]");
 const dashboardWelcome = document.getElementById("dashboardWelcome");
@@ -26,6 +28,9 @@ const mechanicSettingsForm = document.getElementById("mechanicSettingsForm");
 const mechanicSettingsMessage = document.getElementById("mechanicSettingsMessage");
 const adminSettingsForm = document.getElementById("adminSettingsForm");
 const adminSettingsMessage = document.getElementById("adminSettingsMessage");
+const mechanicJobsList = document.getElementById("mechanicJobsList");
+const mechanicJobsStatus = document.getElementById("mechanicJobsStatus");
+const refreshMechanicJobsButton = document.getElementById("refreshMechanicJobsButton");
 const trackingList = document.getElementById("trackingList");
 const trackingStatus = document.getElementById("trackingStatus");
 const trackingRole = document.getElementById("trackingRole");
@@ -152,6 +157,21 @@ function applyRoleSelection(role) {
   });
 }
 
+function toggleMechanicRegisterFields() {
+  if (!registerRoleSelect || !mechanicRegisterFields) {
+    return;
+  }
+
+  const isMechanic = registerRoleSelect.value === "mechanic";
+  mechanicRegisterFields.hidden = !isMechanic;
+
+  mechanicRegisterFields.querySelectorAll("input, textarea, select").forEach((field) => {
+    if (field.name === "aadhaarPhoto" || field.name === "shopPhoto" || field.name === "phone" || field.name === "business" || field.name === "shopAddress") {
+      field.required = isMechanic;
+    }
+  });
+}
+
 function loadFormSettings(form) {
   if (!form || !form.id) {
     return;
@@ -166,7 +186,7 @@ function loadFormSettings(form) {
     const values = JSON.parse(raw);
     Object.entries(values).forEach(([key, value]) => {
       const field = form.elements.namedItem(key);
-      if (field) {
+      if (field && field.type !== "file") {
         field.value = value;
       }
     });
@@ -192,9 +212,37 @@ function attachSettingsForm(form, messageElement) {
   });
 }
 
-async function submitJson(url, form, messageElement, successText) {
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function getFormPayload(form) {
   const formData = new FormData(form);
-  const payload = Object.fromEntries(formData.entries());
+  const payload = {};
+
+  for (const [key, value] of formData.entries()) {
+    if (value instanceof File) {
+      payload[key] = value.size ? await readFileAsDataUrl(value) : "";
+    } else {
+      payload[key] = value;
+    }
+  }
+
+  return payload;
+}
+
+async function submitJson(url, form, messageElement, successText) {
+  const payload = await getFormPayload(form);
+  const auth = getAuth();
+
+  if ((form.id === "userForm" || form.id === "requestForm") && auth?.role === "user") {
+    payload.requesterEmail = auth.email || "";
+  }
 
   messageElement.textContent = "Submitting...";
 
@@ -324,6 +372,66 @@ function renderCards(listElement, records, type) {
         `;
       }
 
+      if (type === "mechanicJobs") {
+        const acceptDisabled = record.acceptEnabled ? "" : "disabled";
+        const acceptLabel = record.acceptEnabled ? "Accept job" : "Approval required";
+        return `
+          <article class="admin-card">
+            <h3>${escapeHtml(record.name || "Unnamed request")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.service || "No service")}</span>
+              <span>${escapeHtml(record.urgency || "No urgency")}</span>
+              <span>${escapeHtml(record.status || "No status")}</span>
+            </div>
+            <p><strong>Location:</strong> ${escapeHtml(record.location || "-")}</p>
+            <p><strong>Vehicle:</strong> ${escapeHtml(record.vehicle || "-")}</p>
+            <p><strong>Issue:</strong> ${escapeHtml(record.issue || "-")}</p>
+            <button class="button button-primary action-button" data-accept-job="${escapeHtml(record.id || "")}" ${acceptDisabled}>${acceptLabel}</button>
+          </article>
+        `;
+      }
+
+      if (type === "mechanicVerification") {
+        const aadhaarPreview = record.aadhaarPhoto
+          ? `<img class="document-preview" src="${escapeHtml(record.aadhaarPhoto)}" alt="Aadhaar card preview">`
+          : `<p class="admin-note">No Aadhaar photo uploaded.</p>`;
+        const shopPreview = record.shopPhoto
+          ? `<img class="document-preview" src="${escapeHtml(record.shopPhoto)}" alt="Shop photo preview">`
+          : `<p class="admin-note">No shop photo uploaded.</p>`;
+        return `
+          <article class="admin-card verification-card">
+            <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.verificationStatus || "Pending Verification")}</span>
+              <span>${escapeHtml(record.verificationCallStatus || "Call Pending")}</span>
+              <span>${escapeHtml(record.service || "No service")}</span>
+            </div>
+            <p><strong>Phone:</strong> ${escapeHtml(record.phone || "-")}</p>
+            <p><strong>Email:</strong> ${escapeHtml(record.email || "-")}</p>
+            <p><strong>Shop:</strong> ${escapeHtml(record.business || "-")}</p>
+            <p><strong>Address:</strong> ${escapeHtml(record.shopAddress || "-")}</p>
+            <p><strong>Notes:</strong> ${escapeHtml(record.verificationNotes || "-")}</p>
+            <div class="verification-doc-grid">
+              <div>
+                <p class="mini-label">Aadhaar</p>
+                ${aadhaarPreview}
+              </div>
+              <div>
+                <p class="mini-label">Shop</p>
+                ${shopPreview}
+              </div>
+            </div>
+            <div class="verification-actions">
+              <button class="button button-secondary action-button" data-call-status="${escapeHtml(record.id || "")}" data-value="Call Scheduled">Schedule call</button>
+              <button class="button button-secondary action-button" data-call-status="${escapeHtml(record.id || "")}" data-value="Verified By Call">Verified by call</button>
+              <button class="button button-primary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Approved">Approve</button>
+              <button class="button button-secondary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Need More Info">Need info</button>
+              <button class="button button-secondary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Rejected">Reject</button>
+            </div>
+          </article>
+        `;
+      }
+
       return `
         <article class="admin-card">
           <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
@@ -339,6 +447,56 @@ function renderCards(listElement, records, type) {
       `;
     })
     .join("");
+}
+
+async function updateMechanicVerification(mechanicId, payload) {
+  const response = await fetch(`/api/mechanics/${mechanicId}/verification`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error("Verification update failed");
+  }
+
+  return response.json();
+}
+
+async function acceptMechanicJob(bookingId, mechanicId) {
+  const response = await fetch(`/api/bookings/${bookingId}/accept`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ mechanicId })
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "Job accept failed");
+  }
+
+  return data;
+}
+
+async function getCurrentMechanicRecord() {
+  const auth = getAuth();
+  if (!auth) {
+    return null;
+  }
+
+  const response = await fetch("/api/mechanics");
+  if (!response.ok) {
+    throw new Error("Mechanic records unavailable");
+  }
+
+  const mechanics = await response.json();
+  return (Array.isArray(mechanics) ? mechanics : []).find((mechanic) => {
+    return String(mechanic.email || "").trim().toLowerCase() === String(auth.email || "").trim().toLowerCase();
+  }) || null;
 }
 
 function ensureTrackingMap() {
@@ -562,7 +720,7 @@ async function loadAdminData() {
     ]);
 
     renderCards(bookingsList, Array.isArray(bookings) ? bookings : [], "bookings");
-    renderCards(mechanicsList, Array.isArray(mechanics) ? mechanics : [], "mechanics");
+    renderCards(mechanicsList, Array.isArray(mechanics) ? mechanics : [], "mechanicVerification");
     renderCards(usersList, Array.isArray(users) ? users : [], "users");
     renderCards(adminTrackingList, Array.isArray(trackers) ? trackers : [], "tracking");
     renderCards(adminMatchesList, matches, "matches");
@@ -570,6 +728,41 @@ async function loadAdminData() {
     adminStatus.textContent = "Dashboard updated.";
   } catch (error) {
     adminStatus.textContent = "Could not load admin data right now.";
+  }
+}
+
+async function loadMechanicJobs() {
+  if (!mechanicJobsList || !mechanicJobsStatus) {
+    return;
+  }
+
+  mechanicJobsStatus.textContent = "Loading jobs...";
+
+  try {
+    const [mechanicRecord, bookingsResponse] = await Promise.all([
+      getCurrentMechanicRecord(),
+      fetch("/api/bookings")
+    ]);
+
+    if (!bookingsResponse.ok) {
+      throw new Error("Bookings unavailable");
+    }
+
+    const bookings = await bookingsResponse.json();
+    const isApproved = String(mechanicRecord?.verificationStatus || "") === "Approved";
+    const openJobs = (Array.isArray(bookings) ? bookings : [])
+      .filter((booking) => !String(booking.assignedMechanicId || ""))
+      .map((booking) => ({
+        ...booking,
+        acceptEnabled: isApproved
+      }));
+
+    renderCards(mechanicJobsList, openJobs, "mechanicJobs");
+    mechanicJobsStatus.textContent = isApproved
+      ? "Approved mechanic. You can accept open jobs."
+      : "Admin approval is required before you can accept jobs.";
+  } catch (error) {
+    mechanicJobsStatus.textContent = "Could not load mechanic jobs right now.";
   }
 }
 
@@ -629,30 +822,113 @@ async function loadRoleTrackingMap() {
   }
 
   try {
-    const [trackingResponse, matches] = await Promise.all([
+    const [trackingResponse, matches, bookingsResponse, mechanicRecord] = await Promise.all([
       fetch("/api/tracking"),
-      loadTrackingMatches()
+      loadTrackingMatches(),
+      fetch("/api/bookings"),
+      dashboardRole === "mechanic" ? getCurrentMechanicRecord() : Promise.resolve(null)
     ]);
 
-    if (!trackingResponse.ok) {
+    if (!trackingResponse.ok || !bookingsResponse.ok) {
       throw new Error("Tracking fetch failed");
     }
 
     const trackers = await trackingResponse.json();
-    const trackerId = getTrackerId();
-    const match = matches.find((item) => {
-      if (dashboardRole === "mechanic") {
-        return String(item.mechanic?.trackerId || "") === trackerId;
+    const bookings = await bookingsResponse.json();
+    const records = Array.isArray(trackers) ? trackers : [];
+    const bookingList = Array.isArray(bookings) ? bookings : [];
+
+    let match = null;
+    if (dashboardRole === "mechanic" && mechanicRecord) {
+      const activeBooking = bookingList
+        .slice()
+        .reverse()
+        .find((booking) => String(booking.assignedMechanicId || "") === String(mechanicRecord.id || ""));
+      const userTracker = records.find((tracker) => {
+        return String(tracker.email || "").trim().toLowerCase() === String(activeBooking?.requesterEmail || "").trim().toLowerCase();
+      });
+      const mechanicTracker = records.find((tracker) => {
+        return String(tracker.email || "").trim().toLowerCase() === String(auth.email || "").trim().toLowerCase();
+      });
+
+      if (activeBooking && userTracker && mechanicTracker) {
+        const distanceKm = calculateApproxDistance(userTracker, mechanicTracker);
+        match = {
+          id: `${activeBooking.id}-${mechanicRecord.id}`,
+          distanceKm,
+          user: userTracker,
+          mechanic: mechanicTracker
+        };
       }
+    }
 
-      return String(item.user?.trackerId || "") === trackerId;
-    });
+    if (dashboardRole === "user") {
+      const activeBooking = bookingList
+        .slice()
+        .reverse()
+        .find((booking) => String(booking.requesterEmail || "").trim().toLowerCase() === String(auth.email || "").trim().toLowerCase());
+      const userTracker = records.find((tracker) => {
+        return String(tracker.email || "").trim().toLowerCase() === String(auth.email || "").trim().toLowerCase();
+      });
+      const mechanicTracker = records.find((tracker) => {
+        return String(tracker.email || "").trim().toLowerCase() === String(activeBooking?.assignedMechanicEmail || "").trim().toLowerCase();
+      });
 
-    updateTrackingMap(Array.isArray(trackers) ? trackers : [], match ? [match] : []);
+      if (activeBooking && userTracker && mechanicTracker) {
+        const distanceKm = calculateApproxDistance(userTracker, mechanicTracker);
+        match = {
+          id: `${activeBooking.id}-${activeBooking.assignedMechanicId || "mechanic"}`,
+          distanceKm,
+          user: userTracker,
+          mechanic: mechanicTracker
+        };
+      }
+    }
+
+    if (!match) {
+      const trackerId = getTrackerId();
+      match = matches.find((item) => {
+        if (dashboardRole === "mechanic") {
+          return String(item.mechanic?.trackerId || "") === trackerId;
+        }
+
+        return String(item.user?.trackerId || "") === trackerId;
+      }) || null;
+    }
+
+    updateTrackingMap(records, match ? [match] : []);
     renderRoleTrackingMatch(match || null);
   } catch (error) {
     renderRoleTrackingMatch(null);
   }
+}
+
+function calculateApproxDistance(pointA, pointB) {
+  const latitudeA = Number(pointA?.latitude);
+  const longitudeA = Number(pointA?.longitude);
+  const latitudeB = Number(pointB?.latitude);
+  const longitudeB = Number(pointB?.longitude);
+
+  if (
+    Number.isNaN(latitudeA) ||
+    Number.isNaN(longitudeA) ||
+    Number.isNaN(latitudeB) ||
+    Number.isNaN(longitudeB)
+  ) {
+    return "-";
+  }
+
+  const earthRadiusKm = 6371;
+  const latDelta = ((latitudeB - latitudeA) * Math.PI) / 180;
+  const lonDelta = ((longitudeB - longitudeA) * Math.PI) / 180;
+  const latA = (latitudeA * Math.PI) / 180;
+  const latB = (latitudeB * Math.PI) / 180;
+
+  const haversine =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(latA) * Math.cos(latB) * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
+
+  return Number((2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))).toFixed(2));
 }
 
 async function sendTrackingPosition(position) {
@@ -665,6 +941,7 @@ async function sendTrackingPosition(position) {
     trackerId: getTrackerId(),
     role: auth.role,
     name: auth.name,
+    email: auth.email,
     latitude: position.coords.latitude,
     longitude: position.coords.longitude,
     accuracy: position.coords.accuracy
@@ -756,6 +1033,11 @@ if (roleCards.length && selectedRoleInput) {
   });
 }
 
+if (registerRoleSelect) {
+  toggleMechanicRegisterFields();
+  registerRoleSelect.addEventListener("change", toggleMechanicRegisterFields);
+}
+
 if (requestForm && formMessage) {
   requestForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -800,12 +1082,20 @@ if (refreshAdminButton) {
   refreshAdminButton.addEventListener("click", loadAdminData);
 }
 
+if (refreshMechanicJobsButton) {
+  refreshMechanicJobsButton.addEventListener("click", loadMechanicJobs);
+}
+
 if (dashboardRole) {
   requireDashboardAccess(dashboardRole);
 }
 
 if (dashboardRole === "admin" && bookingsList && mechanicsList && usersList) {
   loadAdminData();
+}
+
+if (dashboardRole === "mechanic" && mechanicJobsList) {
+  loadMechanicJobs();
 }
 
 if (dashboardRole === "auth" && trackingList) {
@@ -836,6 +1126,64 @@ logoutLinks.forEach((link) => {
     clearAuth();
     redirectToLogin();
   });
+});
+
+document.addEventListener("click", async (event) => {
+  const verifyButton = event.target.closest("[data-verify-status]");
+  if (verifyButton && adminStatus) {
+    const mechanicId = verifyButton.getAttribute("data-verify-status");
+    const verificationStatus = verifyButton.getAttribute("data-value");
+
+    adminStatus.textContent = "Updating mechanic verification...";
+    try {
+      await updateMechanicVerification(mechanicId, {
+        verificationStatus,
+        verificationNotes: `Updated by admin to ${verificationStatus}`
+      });
+      adminStatus.textContent = `Mechanic marked as ${verificationStatus}.`;
+      loadAdminData();
+    } catch (error) {
+      adminStatus.textContent = "Could not update mechanic verification.";
+    }
+    return;
+  }
+
+  const callButton = event.target.closest("[data-call-status]");
+  if (callButton && adminStatus) {
+    const mechanicId = callButton.getAttribute("data-call-status");
+    const verificationCallStatus = callButton.getAttribute("data-value");
+
+    adminStatus.textContent = "Saving call verification state...";
+    try {
+      await updateMechanicVerification(mechanicId, {
+        verificationCallStatus,
+        verificationNotes: `Admin call state: ${verificationCallStatus}`
+      });
+      adminStatus.textContent = `Call status updated to ${verificationCallStatus}.`;
+      loadAdminData();
+    } catch (error) {
+      adminStatus.textContent = "Could not update call verification.";
+    }
+    return;
+  }
+
+  const acceptButton = event.target.closest("[data-accept-job]");
+  if (acceptButton && mechanicJobsStatus) {
+    const bookingId = acceptButton.getAttribute("data-accept-job");
+    mechanicJobsStatus.textContent = "Accepting job...";
+    try {
+      const mechanicRecord = await getCurrentMechanicRecord();
+      if (!mechanicRecord) {
+        throw new Error("Mechanic profile not found");
+      }
+
+      await acceptMechanicJob(bookingId, mechanicRecord.id);
+      mechanicJobsStatus.textContent = "Job accepted. Tracking and assignment are now linked.";
+      loadMechanicJobs();
+    } catch (error) {
+      mechanicJobsStatus.textContent = error.message || "Could not accept job.";
+    }
+  }
 });
 
 window.addEventListener("pageshow", (event) => {
@@ -888,8 +1236,7 @@ if (registerForm && registerMessage) {
   registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const formData = new FormData(registerForm);
-    const payload = Object.fromEntries(formData.entries());
+    const payload = await getFormPayload(registerForm);
     registerMessage.textContent = "Creating account...";
 
     try {
@@ -906,10 +1253,14 @@ if (registerForm && registerMessage) {
         throw new Error(data.error || "Registration failed");
       }
 
-      registerMessage.textContent = "Account created. Redirecting to login...";
+      registerMessage.textContent =
+        payload.role === "mechanic"
+          ? "Mechanic account created. Wait for admin verification, then log in."
+          : "Account created. Redirecting to login...";
       registerForm.reset();
+      toggleMechanicRegisterFields();
       window.setTimeout(() => {
-        window.location.href = "login.html";
+        window.location.replace("login.html");
       }, 700);
     } catch (error) {
       registerMessage.textContent = error.message || "Registration failed.";
