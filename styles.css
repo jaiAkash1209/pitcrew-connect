@@ -318,6 +318,10 @@ label,
   font-weight: 700;
 }
 
+.dispatch-meta {
+  max-width: 32ch;
+}
+
 .status-pill {
   padding: 0.45rem 0.75rem;
   border-radius: 999px;
