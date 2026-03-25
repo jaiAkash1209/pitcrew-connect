@@ -105,6 +105,8 @@ function createMechanic(payload) {
     verificationStatus: "Pending Verification",
     verificationCallStatus: "Call Pending",
     verificationNotes: "",
+    verificationCallNotes: payload.verificationCallNotes || "",
+    verificationHistory: Array.isArray(payload.verificationHistory) ? payload.verificationHistory : [],
     reviewedAt: "",
     approvedAt: ""
   };
@@ -235,8 +237,43 @@ function mapMechanicRow(row) {
     verificationStatus: row.verification_status || "",
     verificationCallStatus: row.verification_call_status || "",
     verificationNotes: row.verification_notes || "",
+    verificationCallNotes: row.verification_call_notes || "",
+    verificationHistory: parseJsonArray(row.verification_history),
     reviewedAt: row.reviewed_at || "",
     approvedAt: row.approved_at || ""
+  };
+}
+
+function parseJsonArray(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function stringifyJsonArray(value) {
+  return JSON.stringify(Array.isArray(value) ? value : []);
+}
+
+function createVerificationHistoryEntry(payload) {
+  return {
+    id: createId(),
+    createdAt: new Date().toISOString(),
+    actor: "admin",
+    verificationStatus: payload.verificationStatus || "",
+    verificationCallStatus: payload.verificationCallStatus || "",
+    verificationNotes: payload.verificationNotes || "",
+    verificationCallNotes: payload.verificationCallNotes || ""
   };
 }
 
@@ -312,9 +349,21 @@ async function initializeDatabase() {
       verification_status TEXT NOT NULL,
       verification_call_status TEXT NOT NULL,
       verification_notes TEXT NOT NULL,
+      verification_call_notes TEXT NOT NULL DEFAULT '',
+      verification_history TEXT NOT NULL DEFAULT '[]',
       reviewed_at TIMESTAMPTZ NULL,
       approved_at TIMESTAMPTZ NULL
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE mechanics
+    ADD COLUMN IF NOT EXISTS verification_call_notes TEXT NOT NULL DEFAULT '';
+  `);
+
+  await pool.query(`
+    ALTER TABLE mechanics
+    ADD COLUMN IF NOT EXISTS verification_history TEXT NOT NULL DEFAULT '[]';
   `);
 
   await pool.query(`
@@ -395,12 +444,12 @@ async function initializeDatabase() {
       INSERT INTO mechanics (
         id, created_at, name, phone, email, business, experience, location, shop_address,
         service, specialties, aadhaar_photo, shop_photo, verification_status,
-        verification_call_status, verification_notes, reviewed_at, approved_at
+        verification_call_status, verification_notes, verification_call_notes, verification_history, reviewed_at, approved_at
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9,
         $10, $11, $12, $13, $14,
-        $15, $16, $17, $18
+        $15, $16, $17, $18, $19, $20
       )
     `,
     [
@@ -420,6 +469,18 @@ async function initializeDatabase() {
       "Approved",
       "Verified By Call",
       "Seeded demo mechanic",
+      "Demo verification call completed",
+      stringifyJsonArray([
+        {
+          id: createId(),
+          createdAt: new Date().toISOString(),
+          actor: "admin",
+          verificationStatus: "Approved",
+          verificationCallStatus: "Verified By Call",
+          verificationNotes: "Seeded demo mechanic",
+          verificationCallNotes: "Demo verification call completed"
+        }
+      ]),
       new Date().toISOString(),
       new Date().toISOString()
     ]
@@ -589,6 +650,8 @@ async function upsertMechanic(payload) {
         verificationStatus: current.verificationStatus || "Pending Verification",
         verificationCallStatus: current.verificationCallStatus || "Call Pending",
         verificationNotes: current.verificationNotes || "",
+        verificationCallNotes: current.verificationCallNotes || "",
+        verificationHistory: parseJsonArray(current.verificationHistory),
         reviewedAt: current.reviewedAt || "",
         approvedAt: current.approvedAt || ""
       };
@@ -637,8 +700,10 @@ async function upsertMechanic(payload) {
           verification_status = $13,
           verification_call_status = $14,
           verification_notes = $15,
-          reviewed_at = $16,
-          approved_at = $17
+          verification_call_notes = $16,
+          verification_history = $17,
+          reviewed_at = $18,
+          approved_at = $19
         WHERE id = $1
       `,
       [
@@ -657,6 +722,8 @@ async function upsertMechanic(payload) {
         updated.verificationStatus,
         updated.verificationCallStatus,
         updated.verificationNotes,
+        updated.verificationCallNotes,
+        stringifyJsonArray(updated.verificationHistory),
         updated.reviewedAt || null,
         updated.approvedAt || null
       ]
@@ -671,12 +738,12 @@ async function upsertMechanic(payload) {
       INSERT INTO mechanics (
         id, created_at, name, phone, email, business, experience, location, shop_address,
         service, specialties, aadhaar_photo, shop_photo, verification_status,
-        verification_call_status, verification_notes, reviewed_at, approved_at
+        verification_call_status, verification_notes, verification_call_notes, verification_history, reviewed_at, approved_at
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9,
         $10, $11, $12, $13, $14,
-        $15, $16, $17, $18
+        $15, $16, $17, $18, $19, $20
       )
     `,
     [
@@ -696,6 +763,8 @@ async function upsertMechanic(payload) {
       mechanic.verificationStatus,
       mechanic.verificationCallStatus,
       mechanic.verificationNotes,
+      mechanic.verificationCallNotes,
+      stringifyJsonArray(mechanic.verificationHistory),
       mechanic.reviewedAt || null,
       mechanic.approvedAt || null
     ]
@@ -707,6 +776,7 @@ async function updateMechanicVerification(mechanicId, payload) {
   const verificationStatus = String(payload.verificationStatus || "").trim();
   const verificationCallStatus = String(payload.verificationCallStatus || "").trim();
   const verificationNotes = String(payload.verificationNotes || "").trim();
+  const verificationCallNotes = String(payload.verificationCallNotes || "").trim();
   const allowedStatuses = ["Pending Verification", "Approved", "Rejected", "Need More Info"];
   const allowedCallStatuses = ["Call Pending", "Call Scheduled", "Verified By Call", "Call Failed"];
 
@@ -731,7 +801,17 @@ async function updateMechanicVerification(mechanicId, payload) {
       ...current,
       verificationStatus: nextStatus,
       verificationCallStatus: verificationCallStatus || current.verificationCallStatus || "Call Pending",
-      verificationNotes,
+      verificationNotes: verificationNotes || current.verificationNotes || "",
+      verificationCallNotes: verificationCallNotes || current.verificationCallNotes || "",
+      verificationHistory: [
+        ...parseJsonArray(current.verificationHistory),
+        createVerificationHistoryEntry({
+          verificationStatus: verificationStatus || nextStatus,
+          verificationCallStatus: verificationCallStatus || current.verificationCallStatus || "",
+          verificationNotes: verificationNotes || current.verificationNotes || "",
+          verificationCallNotes: verificationCallNotes || current.verificationCallNotes || ""
+        })
+      ],
       reviewedAt: new Date().toISOString(),
       approvedAt: nextStatus === "Approved" ? new Date().toISOString() : current.approvedAt || ""
     };
@@ -750,7 +830,17 @@ async function updateMechanicVerification(mechanicId, payload) {
     ...current,
     verificationStatus: nextStatus,
     verificationCallStatus: verificationCallStatus || current.verificationCallStatus || "Call Pending",
-    verificationNotes,
+    verificationNotes: verificationNotes || current.verificationNotes || "",
+    verificationCallNotes: verificationCallNotes || current.verificationCallNotes || "",
+    verificationHistory: [
+      ...parseJsonArray(current.verificationHistory),
+      createVerificationHistoryEntry({
+        verificationStatus: verificationStatus || nextStatus,
+        verificationCallStatus: verificationCallStatus || current.verificationCallStatus || "",
+        verificationNotes: verificationNotes || current.verificationNotes || "",
+        verificationCallNotes: verificationCallNotes || current.verificationCallNotes || ""
+      })
+    ],
     reviewedAt: new Date().toISOString(),
     approvedAt: nextStatus === "Approved" ? new Date().toISOString() : current.approvedAt || ""
   };
@@ -762,8 +852,10 @@ async function updateMechanicVerification(mechanicId, payload) {
         verification_status = $2,
         verification_call_status = $3,
         verification_notes = $4,
-        reviewed_at = $5,
-        approved_at = $6
+        verification_call_notes = $5,
+        verification_history = $6,
+        reviewed_at = $7,
+        approved_at = $8
       WHERE id = $1
     `,
     [
@@ -771,6 +863,8 @@ async function updateMechanicVerification(mechanicId, payload) {
       updated.verificationStatus,
       updated.verificationCallStatus,
       updated.verificationNotes,
+      updated.verificationCallNotes,
+      stringifyJsonArray(updated.verificationHistory),
       updated.reviewedAt || null,
       updated.approvedAt || null
     ]

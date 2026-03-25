@@ -27,7 +27,7 @@
       <nav class="site-nav">
         <a href="#overview">Overview</a>
         <a href="#bookings-board">Bookings</a>
-        <a href="#mechanics-board">Mechanics</a>
+        <a href="#mechanics-board">Verification</a>
         <a href="#users-board">Users</a>
         <a href="#live-monitoring">Tracking</a>
         <a href="#settings">Settings</a>
@@ -74,13 +74,38 @@
       <div class="container">
         <div class="section-heading left">
           <p class="eyebrow">Rule 02: Partner Review</p>
-          <h2>Mechanic operating profiles</h2>
-          <p>Review service scope, readiness, documents, and call verification before approval.</p>
+          <h2>Mechanic verification control</h2>
+          <p>Review pending mechanics, track admin call outcomes, and confirm which approved mechanics are already carrying jobs.</p>
         </div>
-        <div class="admin-grid" id="mechanicsList">
+        <div class="dashboard-section-grid admin-ops-grid">
+          <div>
+            <h3>Pending verification queue</h3>
+            <div class="admin-grid" id="pendingMechanicsList">
+              <article class="empty-state">
+                <h3>No pending mechanics</h3>
+                <p>New mechanic registrations waiting for admin review will appear here.</p>
+              </article>
+            </div>
+          </div>
+          <div>
+            <h3>Review history</h3>
+            <div class="admin-grid" id="mechanicReviewHistoryList">
+              <article class="empty-state">
+                <h3>No review history yet</h3>
+                <p>Admin call notes and approval history will appear here after review begins.</p>
+              </article>
+            </div>
+          </div>
+        </div>
+        <div class="section-heading left admin-subheading">
+          <p class="eyebrow">Rule 02A: Assigned Work</p>
+          <h3>Approved mechanics with assigned jobs</h3>
+          <p>Track who is approved, which customer job is assigned, and whether the mechanic is currently available.</p>
+        </div>
+        <div class="admin-grid" id="mechanicAssignmentsList">
           <article class="empty-state">
-            <h3>No mechanic profiles loaded yet</h3>
-            <p>Mechanic profiles will appear here after they are submitted.</p>
+            <h3>No assigned mechanic jobs yet</h3>
+            <p>Accepted bookings will appear here once approved mechanics start taking work.</p>
           </article>
         </div>
       </div>
@@ -190,7 +215,7 @@
       <div class="footer-links">
         <a href="#overview">Overview</a>
         <a href="#bookings-board">Bookings</a>
-        <a href="#mechanics-board">Mechanics</a>
+        <a href="#mechanics-board">Verification</a>
         <a href="#users-board">Users</a>
         <a href="#live-monitoring">Tracking</a>
         <a href="#settings">Settings</a>

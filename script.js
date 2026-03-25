@@ -8,6 +8,9 @@ const userForm = document.getElementById("userForm");
 const userMessage = document.getElementById("userMessage");
 const bookingsList = document.getElementById("bookingsList");
 const mechanicsList = document.getElementById("mechanicsList");
+const pendingMechanicsList = document.getElementById("pendingMechanicsList");
+const mechanicReviewHistoryList = document.getElementById("mechanicReviewHistoryList");
+const mechanicAssignmentsList = document.getElementById("mechanicAssignmentsList");
 const adminStatus = document.getElementById("adminStatus");
 const refreshAdminButton = document.getElementById("refreshAdminButton");
 const loginForm = document.getElementById("loginForm");
@@ -293,6 +296,78 @@ function getTrackerLocationLabel(tracker) {
   return "Exact live GPS pin";
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString();
+}
+
+function buildVerificationHistorySummary(record) {
+  const history = Array.isArray(record?.verificationHistory) ? record.verificationHistory : [];
+  if (!history.length) {
+    return "No review activity recorded yet.";
+  }
+
+  return history
+    .slice(-3)
+    .reverse()
+    .map((entry) => {
+      const statusPart = entry.verificationStatus ? `Status: ${entry.verificationStatus}` : "";
+      const callPart = entry.verificationCallStatus ? `Call: ${entry.verificationCallStatus}` : "";
+      const notePart = entry.verificationNotes ? `Note: ${entry.verificationNotes}` : "";
+      const callNotePart = entry.verificationCallNotes ? `Call note: ${entry.verificationCallNotes}` : "";
+
+      return [formatDateTime(entry.createdAt), statusPart, callPart, notePart, callNotePart]
+        .filter(Boolean)
+        .map((item) => escapeHtml(item))
+        .join(" | ");
+    })
+    .join("<br>");
+}
+
+function buildMechanicAssignments(mechanics, bookings) {
+  return (Array.isArray(mechanics) ? mechanics : [])
+    .filter((mechanic) => String(mechanic.verificationStatus || "") === "Approved")
+    .map((mechanic) => {
+      const assignedBookings = (Array.isArray(bookings) ? bookings : []).filter((booking) => {
+        return String(booking.assignedMechanicId || "") === String(mechanic.id || "");
+      });
+
+      return {
+        ...mechanic,
+        assignedBookings
+      };
+    });
+}
+
+function getVerificationNotePayload(mechanicId) {
+  const mechanicSelectorValue =
+    typeof CSS !== "undefined" && typeof CSS.escape === "function"
+      ? CSS.escape(String(mechanicId || ""))
+      : String(mechanicId || "").replaceAll('"', '\\"');
+  const card = document.querySelector(`[data-mechanic-card="${mechanicSelectorValue}"]`);
+  if (!card) {
+    return {
+      verificationNotes: "",
+      verificationCallNotes: ""
+    };
+  }
+
+  const verificationNotes = card.querySelector("[data-review-notes]")?.value?.trim() || "";
+  const verificationCallNotes = card.querySelector("[data-call-notes]")?.value?.trim() || "";
+  return {
+    verificationNotes,
+    verificationCallNotes
+  };
+}
+
 function renderCards(listElement, records, type) {
   if (!listElement) {
     return;
@@ -399,7 +474,7 @@ function renderCards(listElement, records, type) {
           ? `<img class="document-preview" src="${escapeHtml(record.shopPhoto)}" alt="Shop photo preview">`
           : `<p class="admin-note">No shop photo uploaded.</p>`;
         return `
-          <article class="admin-card verification-card">
+          <article class="admin-card verification-card" data-mechanic-card="${escapeHtml(record.id || "")}">
             <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
             <div class="admin-meta">
               <span>${escapeHtml(record.verificationStatus || "Pending Verification")}</span>
@@ -411,6 +486,7 @@ function renderCards(listElement, records, type) {
             <p><strong>Shop:</strong> ${escapeHtml(record.business || "-")}</p>
             <p><strong>Address:</strong> ${escapeHtml(record.shopAddress || "-")}</p>
             <p><strong>Notes:</strong> ${escapeHtml(record.verificationNotes || "-")}</p>
+            <p><strong>Call notes:</strong> ${escapeHtml(record.verificationCallNotes || "-")}</p>
             <div class="verification-doc-grid">
               <div>
                 <p class="mini-label">Aadhaar</p>
@@ -421,12 +497,73 @@ function renderCards(listElement, records, type) {
                 ${shopPreview}
               </div>
             </div>
+            <div class="nested-form">
+              <label class="full-width">
+                Review note
+                <textarea data-review-notes rows="3" placeholder="Add approval or document review note">${escapeHtml(record.verificationNotes || "")}</textarea>
+              </label>
+              <label class="full-width">
+                Call note
+                <textarea data-call-notes rows="3" placeholder="Record the verification call outcome">${escapeHtml(record.verificationCallNotes || "")}</textarea>
+              </label>
+            </div>
+            <p class="admin-note">Latest review activity:<br>${buildVerificationHistorySummary(record)}</p>
             <div class="verification-actions">
               <button class="button button-secondary action-button" data-call-status="${escapeHtml(record.id || "")}" data-value="Call Scheduled">Schedule call</button>
               <button class="button button-secondary action-button" data-call-status="${escapeHtml(record.id || "")}" data-value="Verified By Call">Verified by call</button>
+              <button class="button button-secondary action-button" data-call-status="${escapeHtml(record.id || "")}" data-value="Call Failed">Call failed</button>
               <button class="button button-primary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Approved">Approve</button>
               <button class="button button-secondary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Need More Info">Need info</button>
               <button class="button button-secondary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Rejected">Reject</button>
+            </div>
+          </article>
+        `;
+      }
+
+      if (type === "mechanicReviewHistory") {
+        const latestEntry = Array.isArray(record.verificationHistory) ? record.verificationHistory.slice(-1)[0] : null;
+        return `
+          <article class="admin-card history-card">
+            <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.verificationStatus || "Pending Verification")}</span>
+              <span>${escapeHtml(record.verificationCallStatus || "Call Pending")}</span>
+              <span>${escapeHtml(formatDateTime(record.reviewedAt))}</span>
+            </div>
+            <p><strong>Latest review:</strong> ${escapeHtml(latestEntry?.verificationNotes || record.verificationNotes || "-")}</p>
+            <p><strong>Latest call note:</strong> ${escapeHtml(latestEntry?.verificationCallNotes || record.verificationCallNotes || "-")}</p>
+            <p class="admin-note">${buildVerificationHistorySummary(record)}</p>
+          </article>
+        `;
+      }
+
+      if (type === "mechanicAssignments") {
+        const assignedBookings = Array.isArray(record.assignedBookings) ? record.assignedBookings : [];
+        const assignmentLines = assignedBookings.length
+          ? assignedBookings
+              .map((booking) => {
+                return `
+                  <div class="assignment-item">
+                    <p><strong>${escapeHtml(booking.name || "Customer")}</strong> · ${escapeHtml(booking.service || "Service")}</p>
+                    <p>${escapeHtml(booking.location || "-")} · ${escapeHtml(booking.status || "-")}</p>
+                  </div>
+                `;
+              })
+              .join("")
+          : `<p class="admin-note">No job assigned currently.</p>`;
+
+        return `
+          <article class="admin-card assignment-card">
+            <h3>${escapeHtml(record.name || "Unnamed mechanic")}</h3>
+            <div class="admin-meta">
+              <span>${escapeHtml(record.verificationStatus || "Pending Verification")}</span>
+              <span>${escapeHtml(record.business || "No shop")}</span>
+              <span>${assignedBookings.length ? `${assignedBookings.length} active` : "Available"}</span>
+            </div>
+            <p><strong>Phone:</strong> ${escapeHtml(record.phone || "-")}</p>
+            <p><strong>Service area:</strong> ${escapeHtml(record.location || "-")}</p>
+            <div class="assignment-stack">
+              ${assignmentLines}
             </div>
           </article>
         `;
@@ -693,7 +830,7 @@ async function loadTrackingMatches() {
 }
 
 async function loadAdminData() {
-  if (!bookingsList || !mechanicsList || !adminStatus || !usersList) {
+  if (!bookingsList || !adminStatus || !usersList) {
     return;
   }
 
@@ -719,12 +856,26 @@ async function loadAdminData() {
       trackingResponse.json()
     ]);
 
-    renderCards(bookingsList, Array.isArray(bookings) ? bookings : [], "bookings");
-    renderCards(mechanicsList, Array.isArray(mechanics) ? mechanics : [], "mechanicVerification");
-    renderCards(usersList, Array.isArray(users) ? users : [], "users");
-    renderCards(adminTrackingList, Array.isArray(trackers) ? trackers : [], "tracking");
+    const bookingRecords = Array.isArray(bookings) ? bookings : [];
+    const mechanicRecords = Array.isArray(mechanics) ? mechanics : [];
+    const userRecords = Array.isArray(users) ? users : [];
+    const trackingRecords = Array.isArray(trackers) ? trackers : [];
+    const pendingMechanics = mechanicRecords.filter((mechanic) => {
+      return String(mechanic.verificationStatus || "") !== "Approved" && String(mechanic.verificationStatus || "") !== "Rejected";
+    });
+    const reviewedMechanics = mechanicRecords.filter((mechanic) => {
+      return Boolean(mechanic.reviewedAt) || (Array.isArray(mechanic.verificationHistory) && mechanic.verificationHistory.length);
+    });
+    const mechanicAssignments = buildMechanicAssignments(mechanicRecords, bookingRecords);
+
+    renderCards(bookingsList, bookingRecords, "bookings");
+    renderCards(pendingMechanicsList, pendingMechanics, "mechanicVerification");
+    renderCards(mechanicReviewHistoryList, reviewedMechanics, "mechanicReviewHistory");
+    renderCards(mechanicAssignmentsList, mechanicAssignments, "mechanicAssignments");
+    renderCards(usersList, userRecords, "users");
+    renderCards(adminTrackingList, trackingRecords, "tracking");
     renderCards(adminMatchesList, matches, "matches");
-    updateTrackingMap(Array.isArray(trackers) ? trackers : [], matches);
+    updateTrackingMap(trackingRecords, matches);
     adminStatus.textContent = "Dashboard updated.";
   } catch (error) {
     adminStatus.textContent = "Could not load admin data right now.";
@@ -1090,7 +1241,7 @@ if (dashboardRole) {
   requireDashboardAccess(dashboardRole);
 }
 
-if (dashboardRole === "admin" && bookingsList && mechanicsList && usersList) {
+if (dashboardRole === "admin" && bookingsList && usersList) {
   loadAdminData();
 }
 
@@ -1133,12 +1284,14 @@ document.addEventListener("click", async (event) => {
   if (verifyButton && adminStatus) {
     const mechanicId = verifyButton.getAttribute("data-verify-status");
     const verificationStatus = verifyButton.getAttribute("data-value");
+    const notePayload = getVerificationNotePayload(mechanicId);
 
     adminStatus.textContent = "Updating mechanic verification...";
     try {
       await updateMechanicVerification(mechanicId, {
         verificationStatus,
-        verificationNotes: `Updated by admin to ${verificationStatus}`
+        verificationNotes: notePayload.verificationNotes || `Updated by admin to ${verificationStatus}`,
+        verificationCallNotes: notePayload.verificationCallNotes
       });
       adminStatus.textContent = `Mechanic marked as ${verificationStatus}.`;
       loadAdminData();
@@ -1152,12 +1305,14 @@ document.addEventListener("click", async (event) => {
   if (callButton && adminStatus) {
     const mechanicId = callButton.getAttribute("data-call-status");
     const verificationCallStatus = callButton.getAttribute("data-value");
+    const notePayload = getVerificationNotePayload(mechanicId);
 
     adminStatus.textContent = "Saving call verification state...";
     try {
       await updateMechanicVerification(mechanicId, {
         verificationCallStatus,
-        verificationNotes: `Admin call state: ${verificationCallStatus}`
+        verificationNotes: notePayload.verificationNotes || `Admin call state: ${verificationCallStatus}`,
+        verificationCallNotes: notePayload.verificationCallNotes || `Admin call state: ${verificationCallStatus}`
       });
       adminStatus.textContent = `Call status updated to ${verificationCallStatus}.`;
       loadAdminData();
