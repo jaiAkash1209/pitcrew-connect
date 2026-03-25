@@ -1,10 +1,17 @@
 # PitCrew Connect
 
-Static front-end MVP plus a deployable Node/Express API for bookings and mechanic onboarding.
+Static front-end MVP plus a deployable Node/Express API for bookings, mechanic onboarding, verification, and job acceptance.
 
 ## Run locally
 
-Install dependencies and start the server from the project root:
+Install dependencies and start the server from the project root.
+
+Local development works in two modes:
+
+- without `DATABASE_URL`: JSON fallback storage in `data/*.json`
+- with `DATABASE_URL`: PostgreSQL storage for durable records
+
+Run:
 
 ```powershell
 npm install
@@ -19,22 +26,37 @@ Then open:
 
 - `POST /api/bookings`
 - `GET /api/bookings`
+- `PATCH /api/bookings/:id/accept`
 - `POST /api/mechanics`
 - `GET /api/mechanics`
+- `PATCH /api/mechanics/:id/verification`
+- `POST /api/users/register`
+- `POST /api/login`
+- `GET /api/tracking`
+- `POST /api/tracking/update`
+- `GET /api/tracking/matches`
 
-Submitted records are stored in:
+Local JSON fallback records are stored in:
 
 - `data/bookings.json`
 - `data/mechanics.json`
+- `data/users.json`
+- `data/tracking.json`
 
 ## Deploy on Render
 
-This repo includes `render.yaml` for a simple web service deployment.
+This repo includes `render.yaml` for a web service plus PostgreSQL database deployment.
 
 1. Push this project to GitHub.
 2. Create a new Render service from the repo.
-3. Render will use:
+3. Render will provision:
+   - a PostgreSQL database
+   - a `DATABASE_URL` environment variable on the web service
+4. Render will use:
    - `buildCommand`: `npm install`
    - `startCommand`: `npm start`
 
-Note: the current app stores data in local JSON files, which is fine for MVP demos but not durable production storage.
+Important:
+
+- deployed accounts and records persist only when `DATABASE_URL` is configured
+- if `DATABASE_URL` is missing, the app falls back to local JSON files, which are not durable on hosted deployments

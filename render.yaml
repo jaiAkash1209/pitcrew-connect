@@ -1,3 +1,7 @@
+databases:
+  - name: pitcrew-connect-db
+    plan: free
+
 services:
   - type: web
     name: pitcrew-connect
@@ -5,3 +9,8 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pitcrew-connect-db
+          property: connectionString
