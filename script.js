@@ -73,6 +73,10 @@ function clearAuth() {
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
+function redirectToLogin() {
+  window.location.replace("login.html");
+}
+
 function getDashboardPath(role) {
   if (role === "admin") {
     return "admin.html";
@@ -579,7 +583,7 @@ function requireDashboardAccess(requiredRole) {
 
   const auth = getAuth();
   if (!auth || (requiredRole !== "auth" && auth.role !== requiredRole)) {
-    window.location.href = "login.html";
+    redirectToLogin();
     return;
   }
 
@@ -827,9 +831,21 @@ if (stopTrackingButton) {
 }
 
 logoutLinks.forEach((link) => {
-  link.addEventListener("click", () => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
     clearAuth();
+    redirectToLogin();
   });
+});
+
+window.addEventListener("pageshow", (event) => {
+  if (!dashboardRole) {
+    return;
+  }
+
+  if (event.persisted || !getAuth()) {
+    requireDashboardAccess(dashboardRole);
+  }
 });
 
 if (loginForm && loginMessage) {
@@ -859,7 +875,7 @@ if (loginForm && loginMessage) {
       setAuth(data.user);
       loginMessage.textContent = "Login successful. Redirecting...";
       window.setTimeout(() => {
-        window.location.href = getDashboardPath(role);
+        window.location.replace(getDashboardPath(role));
       }, 400);
     } catch (error) {
       clearAuth();
