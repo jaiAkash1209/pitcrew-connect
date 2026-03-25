@@ -44,6 +44,7 @@ const roleTrackingTitle = document.getElementById("roleTrackingTitle");
 const roleTrackingPrimary = document.getElementById("roleTrackingPrimary");
 const roleTrackingSecondary = document.getElementById("roleTrackingSecondary");
 const roleTrackingDescription = document.getElementById("roleTrackingDescription");
+const roleTrackingCoordinates = document.getElementById("roleTrackingCoordinates");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
 const THEME_STORAGE_KEY = "pitcrew_theme";
@@ -53,6 +54,7 @@ let trackingPollId = null;
 let trackingMap = null;
 let trackingMarkers = new Map();
 let trackingRoutes = new Map();
+let trackingAccuracyCircles = new Map();
 
 function setAuth(auth) {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
@@ -221,6 +223,24 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function formatCoordinate(value) {
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return "-";
+  }
+
+  return numericValue.toFixed(6);
+}
+
+function getTrackerLocationLabel(tracker) {
+  const accuracy = Number(tracker?.accuracy);
+  if (!Number.isNaN(accuracy) && accuracy > 500) {
+    return "Remote area / unnamed area";
+  }
+
+  return "Exact live GPS pin";
+}
+
 function renderCards(listElement, records, type) {
   if (!listElement) {
     return;
@@ -355,23 +375,52 @@ function updateTrackingMap(trackers, matches) {
     const popup = `
       <strong>${escapeHtml(tracker.name || "Unknown tracker")}</strong><br>
       Role: ${escapeHtml(tracker.role || "-")}<br>
+      Location: ${escapeHtml(getTrackerLocationLabel(tracker))}<br>
+      Coordinates: ${escapeHtml(formatCoordinate(tracker.latitude))}, ${escapeHtml(formatCoordinate(tracker.longitude))}<br>
       Updated: ${escapeHtml(tracker.updatedAt || "-")}
     `;
 
     const marker = trackingMarkers.get(trackerId);
     if (marker) {
       marker.setLatLng([latitude, longitude]).bindPopup(popup);
-      return;
+    } else {
+      const nextMarker = window.L.marker([latitude, longitude]).addTo(trackingMap).bindPopup(popup);
+      trackingMarkers.set(trackerId, nextMarker);
     }
 
-    const nextMarker = window.L.marker([latitude, longitude]).addTo(trackingMap).bindPopup(popup);
-    trackingMarkers.set(trackerId, nextMarker);
+    const accuracyRadius = Number(tracker.accuracy);
+    const circle = trackingAccuracyCircles.get(trackerId);
+    if (!Number.isNaN(accuracyRadius) && accuracyRadius > 0) {
+      if (circle) {
+        circle.setLatLng([latitude, longitude]);
+        circle.setRadius(accuracyRadius);
+      } else {
+        const nextCircle = window.L.circle([latitude, longitude], {
+          radius: accuracyRadius,
+          color: "#ff6b2c",
+          weight: 1,
+          fillColor: "#ff6b2c",
+          fillOpacity: 0.08
+        }).addTo(trackingMap);
+        trackingAccuracyCircles.set(trackerId, nextCircle);
+      }
+    } else if (circle) {
+      trackingMap.removeLayer(circle);
+      trackingAccuracyCircles.delete(trackerId);
+    }
   });
 
   trackingMarkers.forEach((marker, trackerId) => {
     if (!activeIds.has(trackerId)) {
       trackingMap.removeLayer(marker);
       trackingMarkers.delete(trackerId);
+    }
+  });
+
+  trackingAccuracyCircles.forEach((circle, trackerId) => {
+    if (!activeIds.has(trackerId)) {
+      trackingMap.removeLayer(circle);
+      trackingAccuracyCircles.delete(trackerId);
     }
   });
 
@@ -437,6 +486,9 @@ function renderRoleTrackingMatch(match) {
     roleTrackingTitle.textContent = "Waiting for live match";
     roleTrackingPrimary.textContent = dashboardRole === "mechanic" ? "User: -" : "Mechanic: -";
     roleTrackingSecondary.textContent = "Distance: -";
+    if (roleTrackingCoordinates) {
+      roleTrackingCoordinates.textContent = dashboardRole === "mechanic" ? "Destination pin: -" : "User position: -";
+    }
     roleTrackingDescription.textContent =
       dashboardRole === "mechanic"
         ? "Once the user enables live tracking, the destination route will appear here."
@@ -448,6 +500,10 @@ function renderRoleTrackingMatch(match) {
     roleTrackingTitle.textContent = "Customer destination is live";
     roleTrackingPrimary.textContent = `User: ${match.user?.name || "-"}`;
     roleTrackingSecondary.textContent = `Distance: ${match.distanceKm ?? "-"} km`;
+    if (roleTrackingCoordinates) {
+      roleTrackingCoordinates.textContent =
+        `Destination pin: ${formatCoordinate(match.user?.latitude)}, ${formatCoordinate(match.user?.longitude)} (${getTrackerLocationLabel(match.user)})`;
+    }
     roleTrackingDescription.textContent =
       `Follow the route line on the map to reach ${match.user?.name || "the user"} at the exact shared position.`;
     return;
@@ -456,6 +512,10 @@ function renderRoleTrackingMatch(match) {
   roleTrackingTitle.textContent = "Mechanic is on the way";
   roleTrackingPrimary.textContent = `Mechanic: ${match.mechanic?.name || "-"}`;
   roleTrackingSecondary.textContent = `Distance: ${match.distanceKm ?? "-"} km`;
+  if (roleTrackingCoordinates) {
+    roleTrackingCoordinates.textContent =
+      `User position: ${formatCoordinate(match.user?.latitude)}, ${formatCoordinate(match.user?.longitude)} (${getTrackerLocationLabel(match.user)})`;
+  }
   roleTrackingDescription.textContent =
     `The map shows the assigned mechanic route to your live location. Keep your tracking enabled for accurate directions.`;
 }

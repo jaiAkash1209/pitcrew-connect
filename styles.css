@@ -631,6 +631,12 @@ textarea:focus {
   align-self: start;
 }
 
+.tracking-coordinate-line {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+  color: var(--ink-blue);
+}
+
 .dashboard-section-grid > div {
   display: grid;
   gap: 1rem;
