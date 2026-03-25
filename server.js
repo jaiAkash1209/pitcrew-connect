@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
 
 const app = express();
@@ -13,6 +14,7 @@ const usersPath = path.join(dataDir, "users.json");
 const trackingPath = path.join(dataDir, "tracking.json");
 const databaseUrl = process.env.DATABASE_URL || "";
 const useDatabase = Boolean(databaseUrl);
+const passwordSaltRounds = 10;
 const pool = useDatabase
   ? new Pool({
       connectionString: databaseUrl,
@@ -117,6 +119,10 @@ function createUserAccount(payload) {
     password: payload.password || "",
     role: payload.role || "user"
   };
+}
+
+function isPasswordHash(value) {
+  return typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
 }
 
 function createTracker(payload) {
@@ -356,7 +362,7 @@ async function initializeDatabase() {
       createdAt: new Date().toISOString(),
       name: "Platform Admin",
       email: "admin@pitcrewconnect.com",
-      password: "Admin123!",
+      password: await bcrypt.hash("Admin123!", passwordSaltRounds),
       role: "admin"
     },
     {
@@ -364,7 +370,7 @@ async function initializeDatabase() {
       createdAt: new Date().toISOString(),
       name: "Service Partner",
       email: "mechanic@pitcrewconnect.com",
-      password: "Mechanic123!",
+      password: await bcrypt.hash("Mechanic123!", passwordSaltRounds),
       role: "mechanic"
     },
     {
@@ -372,7 +378,7 @@ async function initializeDatabase() {
       createdAt: new Date().toISOString(),
       name: "Customer Account",
       email: "user@pitcrewconnect.com",
-      password: "User123!",
+      password: await bcrypt.hash("User123!", passwordSaltRounds),
       role: "user"
     }
   ];
@@ -444,23 +450,68 @@ async function getUsers() {
 async function findUserByCredentials(email, password, role) {
   if (!useDatabase) {
     const users = readRecords(usersPath);
-    return (
-      users.find((item) => {
-        return (
-          String(item.email || "").trim().toLowerCase() === email &&
-          String(item.password || "") === password &&
-          String(item.role || "").trim().toLowerCase() === role
-        );
-      }) || null
-    );
+    const userIndex = users.findIndex((item) => {
+      return (
+        String(item.email || "").trim().toLowerCase() === email &&
+        String(item.role || "").trim().toLowerCase() === role
+      );
+    });
+
+    if (userIndex < 0) {
+      return null;
+    }
+
+    const user = users[userIndex];
+    const storedPassword = String(user.password || "");
+    const isValid = isPasswordHash(storedPassword)
+      ? await bcrypt.compare(password, storedPassword)
+      : storedPassword === password;
+
+    if (!isValid) {
+      return null;
+    }
+
+    if (!isPasswordHash(storedPassword)) {
+      users[userIndex] = {
+        ...user,
+        password: await bcrypt.hash(password, passwordSaltRounds)
+      };
+      writeRecords(usersPath, users);
+      return users[userIndex];
+    }
+
+    return user;
   }
 
   const result = await pool.query(
-    "SELECT id, created_at, name, email, password, role FROM users WHERE email = $1 AND password = $2 AND role = $3 LIMIT 1",
-    [email, password, role]
+    "SELECT id, created_at, name, email, password, role FROM users WHERE email = $1 AND role = $2 LIMIT 1",
+    [email, role]
   );
 
-  return result.rows[0] ? mapUserRow(result.rows[0]) : null;
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  const user = mapUserRow(result.rows[0]);
+  const storedPassword = String(user.password || "");
+  const isValid = isPasswordHash(storedPassword)
+    ? await bcrypt.compare(password, storedPassword)
+    : storedPassword === password;
+
+  if (!isValid) {
+    return null;
+  }
+
+  if (!isPasswordHash(storedPassword)) {
+    const hashedPassword = await bcrypt.hash(password, passwordSaltRounds);
+    await pool.query("UPDATE users SET password = $2 WHERE id = $1", [user.id, hashedPassword]);
+    return {
+      ...user,
+      password: hashedPassword
+    };
+  }
+
+  return user;
 }
 
 async function emailExists(email) {
@@ -473,7 +524,11 @@ async function emailExists(email) {
 }
 
 async function registerUser(payload) {
-  const user = createUserAccount(payload);
+  const hashedPassword = await bcrypt.hash(String(payload.password || ""), passwordSaltRounds);
+  const user = createUserAccount({
+    ...payload,
+    password: hashedPassword
+  });
 
   if (!useDatabase) {
     writeRecord(usersPath, user);
