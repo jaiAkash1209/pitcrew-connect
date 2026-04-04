@@ -600,6 +600,51 @@ textarea:focus {
   gap: 1.25rem;
 }
 
+.table-shell {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1.4rem;
+  box-shadow: var(--shadow);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: rgba(22, 50, 79, 0.05);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-empty {
+  color: var(--muted);
+  text-align: center;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 .admin-card,
 .empty-state {
   padding: 1.4rem;
@@ -707,6 +752,16 @@ textarea:focus {
   gap: 0.85rem;
 }
 
+.admin-edit-form {
+  margin-top: 1.25rem;
+}
+
+.form-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
 .history-card,
 .assignment-card {
   display: grid;
@@ -735,6 +790,17 @@ textarea:focus {
   margin-bottom: 1rem;
 }
 
+.auth-inline-link {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.auth-inline-link a {
+  color: var(--ink-blue);
+  font-weight: 700;
+}
+
 .dashboard-section-grid > div {
   display: grid;
   gap: 1rem;
@@ -755,6 +821,10 @@ body.theme-dark textarea {
 body.theme-dark .admin-meta span,
 body.theme-dark .status-pill {
   background: rgba(216, 232, 248, 0.12);
+}
+
+body.theme-dark .data-table th {
+  background: rgba(216, 232, 248, 0.06);
 }
 
 @media (max-width: 920px) {

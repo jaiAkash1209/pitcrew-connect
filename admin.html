@@ -61,11 +61,26 @@
           <h2>Customer request records</h2>
           <p>Review structured request intake before assignment and follow-up.</p>
         </div>
-        <div class="admin-grid" id="bookingsList">
-          <article class="empty-state">
-            <h3>No bookings loaded yet</h3>
-            <p>Bookings will appear here after users submit service requests.</p>
-          </article>
+        <div class="table-shell">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Service</th>
+                <th>Urgency</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Assigned Mechanic</th>
+                <th>Created</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="bookingsTableBody">
+              <tr>
+                <td colspan="8" class="table-empty">Bookings will appear here after users submit service requests.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -108,6 +123,76 @@
             <p>Accepted bookings will appear here once approved mechanics start taking work.</p>
           </article>
         </div>
+        <div class="section-heading left admin-subheading">
+          <p class="eyebrow">Rule 02B: Mechanic Database</p>
+          <h3>Mechanic account records</h3>
+          <p>View mechanic records in a sheet layout and update account details from one form.</p>
+        </div>
+        <div class="table-shell">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Shop</th>
+                <th>Verification</th>
+                <th>Call Status</th>
+                <th>Assigned Jobs</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="mechanicTableBody">
+              <tr>
+                <td colspan="8" class="table-empty">Mechanic accounts will appear here after registration.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <form class="request-form compact-form admin-edit-form" id="mechanicEditForm">
+          <input type="hidden" name="id">
+          <label>
+            Mechanic name
+            <input type="text" name="name" placeholder="Enter mechanic name" required>
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" placeholder="Enter mechanic email" required>
+          </label>
+          <label>
+            Mobile
+            <input type="text" name="phone" placeholder="Enter mobile number" required>
+          </label>
+          <label>
+            Shop name
+            <input type="text" name="business" placeholder="Enter shop name" required>
+          </label>
+          <label>
+            Experience
+            <input type="text" name="experience" placeholder="Enter experience">
+          </label>
+          <label>
+            City / Area
+            <input type="text" name="location" placeholder="Enter city or area">
+          </label>
+          <label class="full-width">
+            Shop address
+            <textarea name="shopAddress" rows="3" placeholder="Enter shop address"></textarea>
+          </label>
+          <label>
+            Service type
+            <input type="text" name="service" placeholder="Enter service type">
+          </label>
+          <label class="full-width">
+            Specialties
+            <textarea name="specialties" rows="3" placeholder="Enter specialties"></textarea>
+          </label>
+          <div class="form-inline-actions full-width">
+            <button type="submit" class="button button-primary">Save mechanic changes</button>
+            <button type="button" class="button button-secondary" id="clearMechanicEditButton">Clear</button>
+          </div>
+          <p class="form-message full-width" id="mechanicEditMessage" aria-live="polite"></p>
+        </form>
       </div>
     </section>
 
@@ -118,12 +203,44 @@
           <h2>User account records</h2>
           <p>Audit role accounts and stored user records from one section.</p>
         </div>
-        <div class="admin-grid" id="usersList">
-          <article class="empty-state">
-            <h3>No user accounts loaded yet</h3>
-            <p>User accounts will appear here after registration.</p>
-          </article>
+        <div class="table-shell">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr>
+                <td colspan="5" class="table-empty">User accounts will appear here after registration.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+        <form class="request-form compact-form admin-edit-form" id="userEditForm">
+          <input type="hidden" name="id">
+          <label>
+            User name
+            <input type="text" name="name" placeholder="Enter user name" required>
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" placeholder="Enter user email" required>
+          </label>
+          <label>
+            Role
+            <input type="text" name="role" readonly>
+          </label>
+          <div class="form-inline-actions full-width">
+            <button type="submit" class="button button-primary">Save user changes</button>
+            <button type="button" class="button button-secondary" id="clearUserEditButton">Clear</button>
+          </div>
+          <p class="form-message full-width" id="userEditMessage" aria-live="polite"></p>
+        </form>
       </div>
     </section>
 

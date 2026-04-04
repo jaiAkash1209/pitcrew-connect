@@ -35,11 +35,14 @@ Then open:
 - `PATCH /api/bookings/:id/accept`
 - `POST /api/mechanics`
 - `GET /api/mechanics`
+- `PATCH /api/mechanics/:id`
 - `PATCH /api/mechanics/:id/verification`
 - `POST /api/users/register`
 - `GET /api/users`
+- `PATCH /api/users/:id`
 - `DELETE /api/users/:id`
 - `POST /api/login`
+- `POST /api/password/reset`
 - `GET /api/tracking`
 - `POST /api/tracking/update`
 - `GET /api/tracking/matches`

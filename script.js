@@ -11,6 +11,9 @@ const mechanicsList = document.getElementById("mechanicsList");
 const pendingMechanicsList = document.getElementById("pendingMechanicsList");
 const mechanicReviewHistoryList = document.getElementById("mechanicReviewHistoryList");
 const mechanicAssignmentsList = document.getElementById("mechanicAssignmentsList");
+const bookingsTableBody = document.getElementById("bookingsTableBody");
+const usersTableBody = document.getElementById("usersTableBody");
+const mechanicTableBody = document.getElementById("mechanicTableBody");
 const adminStatus = document.getElementById("adminStatus");
 const refreshAdminButton = document.getElementById("refreshAdminButton");
 const loginForm = document.getElementById("loginForm");
@@ -25,6 +28,12 @@ const dashboardWelcome = document.getElementById("dashboardWelcome");
 const logoutLinks = document.querySelectorAll(".logout-link");
 const dashboardRole = document.body?.dataset?.dashboardRole || "";
 const usersList = document.getElementById("usersList");
+const userEditForm = document.getElementById("userEditForm");
+const userEditMessage = document.getElementById("userEditMessage");
+const clearUserEditButton = document.getElementById("clearUserEditButton");
+const mechanicEditForm = document.getElementById("mechanicEditForm");
+const mechanicEditMessage = document.getElementById("mechanicEditMessage");
+const clearMechanicEditButton = document.getElementById("clearMechanicEditButton");
 const userSettingsForm = document.getElementById("userSettingsForm");
 const userSettingsMessage = document.getElementById("userSettingsMessage");
 const mechanicSettingsForm = document.getElementById("mechanicSettingsForm");
@@ -53,6 +62,8 @@ const roleTrackingPrimary = document.getElementById("roleTrackingPrimary");
 const roleTrackingSecondary = document.getElementById("roleTrackingSecondary");
 const roleTrackingDescription = document.getElementById("roleTrackingDescription");
 const roleTrackingCoordinates = document.getElementById("roleTrackingCoordinates");
+const forgotPasswordForm = document.getElementById("forgotPasswordForm");
+const forgotPasswordMessage = document.getElementById("forgotPasswordMessage");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
 const THEME_STORAGE_KEY = "pitcrew_theme";
@@ -63,6 +74,12 @@ let trackingMap = null;
 let trackingMarkers = new Map();
 let trackingRoutes = new Map();
 let trackingAccuracyCircles = new Map();
+let adminDataset = {
+  bookings: [],
+  mechanics: [],
+  users: [],
+  trackers: []
+};
 
 function setAuth(auth) {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
@@ -389,6 +406,150 @@ async function deleteAdminRecord(resource, recordId) {
   }
 
   return data;
+}
+
+async function patchAdminRecord(resource, recordId, payload) {
+  const response = await fetch(`/api/${resource}/${recordId}`, {
+    method: "PATCH",
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "Update failed");
+  }
+
+  return data;
+}
+
+function renderTableBody(tableBody, rowsHtml, emptyMessage, columnCount) {
+  if (!tableBody) {
+    return;
+  }
+
+  if (!rowsHtml.length) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="${columnCount}" class="table-empty">${escapeHtml(emptyMessage)}</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tableBody.innerHTML = rowsHtml.join("");
+}
+
+function renderAdminTables(bookings, users, mechanics) {
+  renderTableBody(
+    bookingsTableBody,
+    (Array.isArray(bookings) ? bookings : []).slice().reverse().map((booking) => `
+      <tr>
+        <td>${escapeHtml(booking.name || "-")}</td>
+        <td>${escapeHtml(booking.service || "-")}</td>
+        <td>${escapeHtml(booking.urgency || "-")}</td>
+        <td>${escapeHtml(booking.location || "-")}</td>
+        <td>${escapeHtml(booking.status || "-")}</td>
+        <td>${escapeHtml(booking.assignedMechanicName || "-")}</td>
+        <td>${escapeHtml(formatDateTime(booking.createdAt))}</td>
+        <td>
+          <button class="button button-secondary action-button" data-delete-resource="bookings" data-delete-id="${escapeHtml(booking.id || "")}">Delete</button>
+        </td>
+      </tr>
+    `),
+    "Bookings will appear here after users submit service requests.",
+    8
+  );
+
+  renderTableBody(
+    usersTableBody,
+    (Array.isArray(users) ? users : []).slice().reverse().map((user) => `
+      <tr>
+        <td>${escapeHtml(user.name || "-")}</td>
+        <td>${escapeHtml(user.email || "-")}</td>
+        <td>${escapeHtml(user.role || "-")}</td>
+        <td>${escapeHtml(formatDateTime(user.createdAt))}</td>
+        <td class="table-actions">
+          <button class="button button-secondary action-button" data-edit-user="${escapeHtml(user.id || "")}">Edit</button>
+          <button class="button button-secondary action-button" data-delete-resource="users" data-delete-id="${escapeHtml(user.id || "")}">Delete</button>
+        </td>
+      </tr>
+    `),
+    "User accounts will appear here after registration.",
+    5
+  );
+
+  renderTableBody(
+    mechanicTableBody,
+    (Array.isArray(mechanics) ? mechanics : []).slice().reverse().map((mechanic) => {
+      const assignedCount = adminDataset.bookings.filter((booking) => {
+        return String(booking.assignedMechanicId || "") === String(mechanic.id || "");
+      }).length;
+
+      return `
+        <tr>
+          <td>${escapeHtml(mechanic.name || "-")}</td>
+          <td>${escapeHtml(mechanic.email || "-")}</td>
+          <td>${escapeHtml(mechanic.phone || "-")}</td>
+          <td>${escapeHtml(mechanic.business || "-")}</td>
+          <td>${escapeHtml(mechanic.verificationStatus || "-")}</td>
+          <td>${escapeHtml(mechanic.verificationCallStatus || "-")}</td>
+          <td>${escapeHtml(String(assignedCount))}</td>
+          <td class="table-actions">
+            <button class="button button-secondary action-button" data-edit-mechanic="${escapeHtml(mechanic.id || "")}">Edit</button>
+            <button class="button button-secondary action-button" data-delete-resource="mechanics" data-delete-id="${escapeHtml(mechanic.id || "")}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }),
+    "Mechanic accounts will appear here after registration.",
+    8
+  );
+}
+
+function fillUserEditForm(user) {
+  if (!userEditForm || !user) {
+    return;
+  }
+
+  userEditForm.elements.namedItem("id").value = user.id || "";
+  userEditForm.elements.namedItem("name").value = user.name || "";
+  userEditForm.elements.namedItem("email").value = user.email || "";
+  userEditForm.elements.namedItem("role").value = user.role || "";
+  if (userEditMessage) {
+    userEditMessage.textContent = `Editing ${user.name || "user"}.`;
+  }
+}
+
+function fillMechanicEditForm(mechanic) {
+  if (!mechanicEditForm || !mechanic) {
+    return;
+  }
+
+  ["id", "name", "email", "phone", "business", "experience", "location", "shopAddress", "service", "specialties"].forEach((fieldName) => {
+    const field = mechanicEditForm.elements.namedItem(fieldName);
+    if (field) {
+      field.value = mechanic[fieldName] || "";
+    }
+  });
+
+  if (mechanicEditMessage) {
+    mechanicEditMessage.textContent = `Editing ${mechanic.name || "mechanic"}.`;
+  }
+}
+
+function clearEditForm(form, messageElement, defaultMessage = "") {
+  if (form) {
+    form.reset();
+    const idField = form.elements.namedItem("id");
+    if (idField) {
+      idField.value = "";
+    }
+  }
+
+  if (messageElement) {
+    messageElement.textContent = defaultMessage;
+  }
 }
 
 function renderCards(listElement, records, type) {
@@ -858,7 +1019,7 @@ async function loadTrackingMatches() {
 }
 
 async function loadAdminData() {
-  if (!bookingsList || !adminStatus || !usersList) {
+  if (!adminStatus) {
     return;
   }
 
@@ -890,6 +1051,12 @@ async function loadAdminData() {
     const mechanicRecords = Array.isArray(mechanics) ? mechanics : [];
     const userRecords = Array.isArray(users) ? users : [];
     const trackingRecords = Array.isArray(trackers) ? trackers : [];
+    adminDataset = {
+      bookings: bookingRecords,
+      mechanics: mechanicRecords,
+      users: userRecords,
+      trackers: trackingRecords
+    };
     const pendingMechanics = mechanicRecords.filter((mechanic) => {
       return String(mechanic.verificationStatus || "") !== "Approved" && String(mechanic.verificationStatus || "") !== "Rejected";
     });
@@ -898,11 +1065,10 @@ async function loadAdminData() {
     });
     const mechanicAssignments = buildMechanicAssignments(mechanicRecords, bookingRecords);
 
-    renderCards(bookingsList, bookingRecords, "bookings");
+    renderAdminTables(bookingRecords, userRecords, mechanicRecords);
     renderCards(pendingMechanicsList, pendingMechanics, "mechanicVerification");
     renderCards(mechanicReviewHistoryList, reviewedMechanics, "mechanicReviewHistory");
     renderCards(mechanicAssignmentsList, mechanicAssignments, "mechanicAssignments");
-    renderCards(usersList, userRecords, "users");
     renderCards(adminTrackingList, trackingRecords, "tracking");
     renderCards(adminMatchesList, matches, "matches");
     updateTrackingMap(trackingRecords, matches);
@@ -1267,11 +1433,23 @@ if (refreshMechanicJobsButton) {
   refreshMechanicJobsButton.addEventListener("click", loadMechanicJobs);
 }
 
+if (clearUserEditButton) {
+  clearUserEditButton.addEventListener("click", () => {
+    clearEditForm(userEditForm, userEditMessage, "User form cleared.");
+  });
+}
+
+if (clearMechanicEditButton) {
+  clearMechanicEditButton.addEventListener("click", () => {
+    clearEditForm(mechanicEditForm, mechanicEditMessage, "Mechanic form cleared.");
+  });
+}
+
 if (dashboardRole) {
   requireDashboardAccess(dashboardRole);
 }
 
-if (dashboardRole === "admin" && bookingsList && usersList) {
+if (dashboardRole === "admin") {
   loadAdminData();
 }
 
@@ -1310,6 +1488,28 @@ logoutLinks.forEach((link) => {
 });
 
 document.addEventListener("click", async (event) => {
+  const editUserButton = event.target.closest("[data-edit-user]");
+  if (editUserButton) {
+    const userId = editUserButton.getAttribute("data-edit-user");
+    const user = adminDataset.users.find((item) => String(item.id || "") === String(userId || ""));
+    if (user) {
+      fillUserEditForm(user);
+      userEditForm?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    return;
+  }
+
+  const editMechanicButton = event.target.closest("[data-edit-mechanic]");
+  if (editMechanicButton) {
+    const mechanicId = editMechanicButton.getAttribute("data-edit-mechanic");
+    const mechanic = adminDataset.mechanics.find((item) => String(item.id || "") === String(mechanicId || ""));
+    if (mechanic) {
+      fillMechanicEditForm(mechanic);
+      mechanicEditForm?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    return;
+  }
+
   const verifyButton = event.target.closest("[data-verify-status]");
   if (verifyButton && adminStatus) {
     const mechanicId = verifyButton.getAttribute("data-verify-status");
@@ -1471,6 +1671,106 @@ if (registerForm && registerMessage) {
       }, 700);
     } catch (error) {
       registerMessage.textContent = error.message || "Registration failed.";
+    }
+  });
+}
+
+if (userEditForm && userEditMessage) {
+  userEditForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const userId = String(userEditForm.elements.namedItem("id")?.value || "").trim();
+    if (!userId) {
+      userEditMessage.textContent = "Select a user record first.";
+      return;
+    }
+
+    const payload = {
+      name: String(userEditForm.elements.namedItem("name")?.value || "").trim(),
+      email: String(userEditForm.elements.namedItem("email")?.value || "").trim(),
+      role: String(userEditForm.elements.namedItem("role")?.value || "").trim()
+    };
+
+    userEditMessage.textContent = "Saving user changes...";
+    try {
+      await patchAdminRecord("users", userId, payload);
+      userEditMessage.textContent = "User account updated.";
+      loadAdminData();
+    } catch (error) {
+      userEditMessage.textContent = error.message || "Could not update user account.";
+    }
+  });
+}
+
+if (mechanicEditForm && mechanicEditMessage) {
+  mechanicEditForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const mechanicId = String(mechanicEditForm.elements.namedItem("id")?.value || "").trim();
+    if (!mechanicId) {
+      mechanicEditMessage.textContent = "Select a mechanic record first.";
+      return;
+    }
+
+    const payload = {
+      name: String(mechanicEditForm.elements.namedItem("name")?.value || "").trim(),
+      email: String(mechanicEditForm.elements.namedItem("email")?.value || "").trim(),
+      phone: String(mechanicEditForm.elements.namedItem("phone")?.value || "").trim(),
+      business: String(mechanicEditForm.elements.namedItem("business")?.value || "").trim(),
+      experience: String(mechanicEditForm.elements.namedItem("experience")?.value || "").trim(),
+      location: String(mechanicEditForm.elements.namedItem("location")?.value || "").trim(),
+      shopAddress: String(mechanicEditForm.elements.namedItem("shopAddress")?.value || "").trim(),
+      service: String(mechanicEditForm.elements.namedItem("service")?.value || "").trim(),
+      specialties: String(mechanicEditForm.elements.namedItem("specialties")?.value || "").trim()
+    };
+
+    mechanicEditMessage.textContent = "Saving mechanic changes...";
+    try {
+      await patchAdminRecord("mechanics", mechanicId, payload);
+      mechanicEditMessage.textContent = "Mechanic account updated.";
+      loadAdminData();
+    } catch (error) {
+      mechanicEditMessage.textContent = error.message || "Could not update mechanic account.";
+    }
+  });
+}
+
+if (forgotPasswordForm && forgotPasswordMessage) {
+  forgotPasswordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const payload = Object.fromEntries(new FormData(forgotPasswordForm).entries());
+    const nextPassword = String(payload.newPassword || "");
+    const confirmPassword = String(payload.confirmPassword || "");
+
+    if (nextPassword !== confirmPassword) {
+      forgotPasswordMessage.textContent = "Passwords do not match.";
+      return;
+    }
+
+    forgotPasswordMessage.textContent = "Updating password...";
+    try {
+      const response = await fetch("/api/password/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: String(payload.email || "").trim(),
+          role: String(payload.role || "").trim(),
+          newPassword: nextPassword
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Password reset failed");
+      }
+
+      forgotPasswordMessage.textContent = "Password updated. You can log in with the new password.";
+      forgotPasswordForm.reset();
+    } catch (error) {
+      forgotPasswordMessage.textContent = error.message || "Could not reset password.";
     }
   });
 }

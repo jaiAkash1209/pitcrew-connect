@@ -609,6 +609,171 @@ async function registerUser(payload) {
   return user;
 }
 
+async function userEmailExistsForOtherAccount(email, excludedUserId = "") {
+  if (!useDatabase) {
+    return readRecords(usersPath).some((user) => {
+      return (
+        String(user.email || "").trim().toLowerCase() === email &&
+        String(user.id || "") !== String(excludedUserId || "")
+      );
+    });
+  }
+
+  const result = await pool.query("SELECT 1 FROM users WHERE email = $1 AND id <> $2 LIMIT 1", [email, excludedUserId]);
+  return result.rowCount > 0;
+}
+
+async function mechanicEmailExistsForOtherAccount(email, excludedMechanicId = "") {
+  if (!useDatabase) {
+    return readRecords(mechanicsPath).some((mechanic) => {
+      return (
+        String(mechanic.email || "").trim().toLowerCase() === email &&
+        String(mechanic.id || "") !== String(excludedMechanicId || "")
+      );
+    });
+  }
+
+  const result = await pool.query("SELECT 1 FROM mechanics WHERE email = $1 AND id <> $2 LIMIT 1", [email, excludedMechanicId]);
+  return result.rowCount > 0;
+}
+
+async function updateUserAccount(userId, payload) {
+  const nextName = String(payload.name || "").trim();
+  const nextEmail = String(payload.email || "").trim().toLowerCase();
+
+  if (!nextName || !nextEmail) {
+    throw new Error("Name and email are required");
+  }
+
+  if (await userEmailExistsForOtherAccount(nextEmail, userId)) {
+    throw new Error("Another account already uses this email");
+  }
+
+  if (!useDatabase) {
+    const users = readRecords(usersPath);
+    const userIndex = findRecordIndex(users, userId);
+    if (userIndex < 0) {
+      return null;
+    }
+
+    const current = users[userIndex];
+    const previousEmail = String(current.email || "").trim().toLowerCase();
+    const currentRole = String(current.role || "").trim().toLowerCase();
+    const updated = {
+      ...current,
+      name: nextName,
+      email: nextEmail
+    };
+    users[userIndex] = updated;
+    writeRecords(usersPath, users);
+
+    if (previousEmail) {
+      writeRecords(
+        trackingPath,
+        readRecords(trackingPath).map((tracker) => {
+          if (String(tracker.email || "").trim().toLowerCase() !== previousEmail) {
+            return tracker;
+          }
+
+          return {
+            ...tracker,
+            name: nextName,
+            email: nextEmail
+          };
+        })
+      );
+    }
+
+    if (currentRole === "user") {
+      writeRecords(
+        bookingsPath,
+        readRecords(bookingsPath).map((booking) => {
+          if (String(booking.requesterEmail || "").trim().toLowerCase() !== previousEmail) {
+            return booking;
+          }
+
+          return {
+            ...booking,
+            requesterEmail: nextEmail
+          };
+        })
+      );
+    }
+
+    if (currentRole === "mechanic") {
+      writeRecords(
+        mechanicsPath,
+        readRecords(mechanicsPath).map((mechanic) => {
+          if (String(mechanic.email || "").trim().toLowerCase() !== previousEmail) {
+            return mechanic;
+          }
+
+          return {
+            ...mechanic,
+            name: nextName,
+            email: nextEmail
+          };
+        })
+      );
+
+      writeRecords(
+        bookingsPath,
+        readRecords(bookingsPath).map((booking) => {
+          if (String(booking.assignedMechanicEmail || "").trim().toLowerCase() !== previousEmail) {
+            return booking;
+          }
+
+          return {
+            ...booking,
+            assignedMechanicName: nextName,
+            assignedMechanicEmail: nextEmail
+          };
+        })
+      );
+    }
+
+    return {
+      id: updated.id,
+      createdAt: updated.createdAt || "",
+      name: updated.name,
+      email: updated.email,
+      role: updated.role || ""
+    };
+  }
+
+  const result = await pool.query("SELECT id, created_at, name, email, role FROM users WHERE id = $1 LIMIT 1", [userId]);
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  const current = mapUserRow(result.rows[0]);
+  const previousEmail = String(current.email || "").trim().toLowerCase();
+  const currentRole = String(current.role || "").trim().toLowerCase();
+
+  await pool.query("UPDATE users SET name = $2, email = $3 WHERE id = $1", [userId, nextName, nextEmail]);
+  await pool.query("UPDATE tracking SET name = $2, email = $3 WHERE email = $1", [previousEmail, nextName, nextEmail]);
+
+  if (currentRole === "user") {
+    await pool.query("UPDATE bookings SET requester_email = $2 WHERE requester_email = $1", [previousEmail, nextEmail]);
+  }
+
+  if (currentRole === "mechanic") {
+    await pool.query("UPDATE mechanics SET name = $2, email = $3 WHERE email = $1", [previousEmail, nextName, nextEmail]);
+    await pool.query(
+      "UPDATE bookings SET assigned_mechanic_name = $2, assigned_mechanic_email = $3 WHERE assigned_mechanic_email = $1",
+      [previousEmail, nextName, nextEmail]
+    );
+  }
+
+  return {
+    id: current.id,
+    createdAt: current.createdAt || "",
+    name: nextName,
+    email: nextEmail,
+    role: current.role || ""
+  };
+}
+
 async function getMechanics(verificationStatus = "") {
   if (!useDatabase) {
     const records = readRecords(mechanicsPath);
@@ -631,6 +796,213 @@ async function getMechanics(verificationStatus = "") {
     [verificationStatus]
   );
   return result.rows.map(mapMechanicRow);
+}
+
+async function updateMechanicAccount(mechanicId, payload) {
+  const nextName = String(payload.name || "").trim();
+  const nextEmail = String(payload.email || "").trim().toLowerCase();
+  const nextPhone = String(payload.phone || "").trim();
+  const nextBusiness = String(payload.business || "").trim();
+
+  if (!nextName || !nextEmail || !nextPhone || !nextBusiness) {
+    throw new Error("Name, email, phone, and shop name are required");
+  }
+
+  if (await mechanicEmailExistsForOtherAccount(nextEmail, mechanicId)) {
+    throw new Error("Another mechanic already uses this email");
+  }
+
+  if (await userEmailExistsForOtherAccount(nextEmail, String(payload.linkedUserId || ""))) {
+    if (!useDatabase) {
+      const mechanics = readRecords(mechanicsPath);
+      const existing = mechanics.find((mechanic) => String(mechanic.id || "") === String(mechanicId || ""));
+      const currentEmail = String(existing?.email || "").trim().toLowerCase();
+      const userConflict = readRecords(usersPath).some((user) => {
+        return (
+          String(user.email || "").trim().toLowerCase() === nextEmail &&
+          String(user.email || "").trim().toLowerCase() !== currentEmail
+        );
+      });
+      if (userConflict) {
+        throw new Error("Another account already uses this email");
+      }
+    } else {
+      const conflictResult = await pool.query(
+        "SELECT 1 FROM users WHERE email = $1 AND email <> (SELECT email FROM mechanics WHERE id = $2 LIMIT 1) LIMIT 1",
+        [nextEmail, mechanicId]
+      );
+      if (conflictResult.rowCount > 0) {
+        throw new Error("Another account already uses this email");
+      }
+    }
+  }
+
+  if (!useDatabase) {
+    const mechanics = readRecords(mechanicsPath);
+    const mechanicIndex = findRecordIndex(mechanics, mechanicId);
+    if (mechanicIndex < 0) {
+      return null;
+    }
+
+    const current = mechanics[mechanicIndex];
+    const previousEmail = String(current.email || "").trim().toLowerCase();
+    const updated = {
+      ...current,
+      name: nextName,
+      email: nextEmail,
+      phone: nextPhone,
+      business: nextBusiness,
+      experience: String(payload.experience || ""),
+      location: String(payload.location || ""),
+      shopAddress: String(payload.shopAddress || ""),
+      service: String(payload.service || ""),
+      specialties: String(payload.specialties || "")
+    };
+    mechanics[mechanicIndex] = updated;
+    writeRecords(mechanicsPath, mechanics);
+
+    writeRecords(
+      usersPath,
+      readRecords(usersPath).map((user) => {
+        if (String(user.email || "").trim().toLowerCase() !== previousEmail || String(user.role || "").trim().toLowerCase() !== "mechanic") {
+          return user;
+        }
+
+        return {
+          ...user,
+          name: nextName,
+          email: nextEmail
+        };
+      })
+    );
+
+    writeRecords(
+      trackingPath,
+      readRecords(trackingPath).map((tracker) => {
+        if (String(tracker.email || "").trim().toLowerCase() !== previousEmail) {
+          return tracker;
+        }
+
+        return {
+          ...tracker,
+          name: nextName,
+          email: nextEmail
+        };
+      })
+    );
+
+    writeRecords(
+      bookingsPath,
+      readRecords(bookingsPath).map((booking) => {
+        if (String(booking.assignedMechanicId || "") !== String(mechanicId || "")) {
+          return booking;
+        }
+
+        return {
+          ...booking,
+          assignedMechanicName: nextName,
+          assignedMechanicEmail: nextEmail
+        };
+      })
+    );
+
+    return updated;
+  }
+
+  const result = await pool.query("SELECT * FROM mechanics WHERE id = $1 LIMIT 1", [mechanicId]);
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  const current = mapMechanicRow(result.rows[0]);
+  const previousEmail = String(current.email || "").trim().toLowerCase();
+  const updated = {
+    ...current,
+    name: nextName,
+    email: nextEmail,
+    phone: nextPhone,
+    business: nextBusiness,
+    experience: String(payload.experience || ""),
+    location: String(payload.location || ""),
+    shopAddress: String(payload.shopAddress || ""),
+    service: String(payload.service || ""),
+    specialties: String(payload.specialties || "")
+  };
+
+  await pool.query(
+    `
+      UPDATE mechanics
+      SET
+        name = $2,
+        email = $3,
+        phone = $4,
+        business = $5,
+        experience = $6,
+        location = $7,
+        shop_address = $8,
+        service = $9,
+        specialties = $10
+      WHERE id = $1
+    `,
+    [
+      mechanicId,
+      updated.name,
+      updated.email,
+      updated.phone,
+      updated.business,
+      updated.experience,
+      updated.location,
+      updated.shopAddress,
+      updated.service,
+      updated.specialties
+    ]
+  );
+
+  await pool.query("UPDATE users SET name = $2, email = $3 WHERE email = $1 AND role = 'mechanic'", [previousEmail, nextName, nextEmail]);
+  await pool.query("UPDATE tracking SET name = $2, email = $3 WHERE email = $1", [previousEmail, nextName, nextEmail]);
+  await pool.query(
+    "UPDATE bookings SET assigned_mechanic_name = $2, assigned_mechanic_email = $3 WHERE assigned_mechanic_id = $1",
+    [mechanicId, nextName, nextEmail]
+  );
+
+  return updated;
+}
+
+async function resetUserPassword(email, role, newPassword) {
+  const nextPassword = String(newPassword || "");
+  if (!nextPassword) {
+    throw new Error("New password is required");
+  }
+
+  const hashedPassword = await bcrypt.hash(nextPassword, passwordSaltRounds);
+
+  if (!useDatabase) {
+    const users = readRecords(usersPath);
+    const userIndex = users.findIndex((user) => {
+      return (
+        String(user.email || "").trim().toLowerCase() === email &&
+        String(user.role || "").trim().toLowerCase() === role
+      );
+    });
+
+    if (userIndex < 0) {
+      return false;
+    }
+
+    users[userIndex] = {
+      ...users[userIndex],
+      password: hashedPassword
+    };
+    writeRecords(usersPath, users);
+    return true;
+  }
+
+  const result = await pool.query(
+    "UPDATE users SET password = $3 WHERE email = $1 AND role = $2",
+    [email, role, hashedPassword]
+  );
+
+  return result.rowCount > 0;
 }
 
 async function upsertMechanic(payload) {
@@ -1294,6 +1666,34 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+app.post("/api/password/reset", async (req, res) => {
+  const email = String(req.body?.email || "").trim().toLowerCase();
+  const role = String(req.body?.role || "").trim().toLowerCase();
+  const newPassword = String(req.body?.newPassword || "");
+
+  if (!email || !role || !newPassword) {
+    res.status(400).json({ ok: false, error: "Email, role, and new password are required" });
+    return;
+  }
+
+  if (!["user", "mechanic", "admin"].includes(role)) {
+    res.status(400).json({ ok: false, error: "Invalid account role" });
+    return;
+  }
+
+  try {
+    const updated = await resetUserPassword(email, role, newPassword);
+    if (!updated) {
+      res.status(404).json({ ok: false, error: "Account not found" });
+      return;
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "Password reset failed" });
+  }
+});
+
 app.get("/api/users", async (_req, res) => {
   if (!requireAdminRole(_req, res)) {
     return;
@@ -1458,6 +1858,48 @@ app.post("/api/mechanics", async (req, res) => {
     res.status(201).json({ ok: true, mechanic });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Mechanic save failed" });
+  }
+});
+
+app.patch("/api/users/:id", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
+  try {
+    const user = await updateUserAccount(String(req.params?.id || ""), req.body || {});
+
+    if (!user) {
+      res.status(404).json({ ok: false, error: "User not found" });
+      return;
+    }
+
+    res.json({ ok: true, user });
+  } catch (error) {
+    const message = error.message || "User update failed";
+    const statusCode = message.includes("required") || message.includes("Another account") ? 400 : 500;
+    res.status(statusCode).json({ ok: false, error: message });
+  }
+});
+
+app.patch("/api/mechanics/:id", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
+  try {
+    const mechanic = await updateMechanicAccount(String(req.params?.id || ""), req.body || {});
+
+    if (!mechanic) {
+      res.status(404).json({ ok: false, error: "Mechanic not found" });
+      return;
+    }
+
+    res.json({ ok: true, mechanic });
+  } catch (error) {
+    const message = error.message || "Mechanic update failed";
+    const statusCode = message.includes("required") || message.includes("Another") ? 400 : 500;
+    res.status(statusCode).json({ ok: false, error: message });
   }
 });
 
