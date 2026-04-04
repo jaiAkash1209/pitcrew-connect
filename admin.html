@@ -76,7 +76,28 @@
               <option value="Closed">Closed</option>
             </select>
           </label>
+          <label>
+            Sort
+            <select id="bookingSortSelect">
+              <option value="createdAt-desc">Newest first</option>
+              <option value="createdAt-asc">Oldest first</option>
+              <option value="name-asc">Customer A-Z</option>
+              <option value="service-asc">Service A-Z</option>
+            </select>
+          </label>
           <button class="button button-secondary" id="exportBookingsButton" type="button">Export CSV</button>
+          <button class="button button-secondary" id="importBookingsButton" type="button">Import CSV</button>
+          <input type="file" id="importBookingsInput" accept=".csv" hidden>
+        </div>
+        <div class="table-subtoolbar">
+          <label>
+            From
+            <input type="date" id="bookingDateFrom">
+          </label>
+          <label>
+            To
+            <input type="date" id="bookingDateTo">
+          </label>
         </div>
         <div class="table-shell">
           <table class="data-table">
@@ -98,6 +119,11 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="table-pagination">
+          <button class="button button-secondary" id="bookingPrevPageButton" type="button">Previous</button>
+          <span id="bookingPageInfo">Page 1</span>
+          <button class="button button-secondary" id="bookingNextPageButton" type="button">Next</button>
         </div>
       </div>
     </section>
@@ -160,7 +186,28 @@
               <option value="Need More Info">Need More Info</option>
             </select>
           </label>
+          <label>
+            Sort
+            <select id="mechanicSortSelect">
+              <option value="createdAt-desc">Newest first</option>
+              <option value="createdAt-asc">Oldest first</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="business-asc">Shop A-Z</option>
+            </select>
+          </label>
           <button class="button button-secondary" id="exportMechanicsButton" type="button">Export CSV</button>
+          <button class="button button-secondary" id="importMechanicsButton" type="button">Import CSV</button>
+          <input type="file" id="importMechanicsInput" accept=".csv" hidden>
+        </div>
+        <div class="table-subtoolbar">
+          <label>
+            From
+            <input type="date" id="mechanicDateFrom">
+          </label>
+          <label>
+            To
+            <input type="date" id="mechanicDateTo">
+          </label>
         </div>
         <div class="table-shell">
           <table class="data-table">
@@ -182,6 +229,11 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="table-pagination">
+          <button class="button button-secondary" id="mechanicPrevPageButton" type="button">Previous</button>
+          <span id="mechanicPageInfo">Page 1</span>
+          <button class="button button-secondary" id="mechanicNextPageButton" type="button">Next</button>
         </div>
         <form class="request-form compact-form admin-edit-form" id="mechanicEditForm">
           <input type="hidden" name="id">
@@ -251,7 +303,28 @@
               <option value="admin">Admin</option>
             </select>
           </label>
+          <label>
+            Sort
+            <select id="userSortSelect">
+              <option value="createdAt-desc">Newest first</option>
+              <option value="createdAt-asc">Oldest first</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="email-asc">Email A-Z</option>
+            </select>
+          </label>
           <button class="button button-secondary" id="exportUsersButton" type="button">Export CSV</button>
+          <button class="button button-secondary" id="importUsersButton" type="button">Import CSV</button>
+          <input type="file" id="importUsersInput" accept=".csv" hidden>
+        </div>
+        <div class="table-subtoolbar">
+          <label>
+            From
+            <input type="date" id="userDateFrom">
+          </label>
+          <label>
+            To
+            <input type="date" id="userDateTo">
+          </label>
         </div>
         <div class="table-shell">
           <table class="data-table">
@@ -270,6 +343,11 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="table-pagination">
+          <button class="button button-secondary" id="userPrevPageButton" type="button">Previous</button>
+          <span id="userPageInfo">Page 1</span>
+          <button class="button button-secondary" id="userNextPageButton" type="button">Next</button>
         </div>
         <form class="request-form compact-form admin-edit-form" id="userEditForm">
           <input type="hidden" name="id">

@@ -610,10 +610,25 @@ textarea:focus {
 
 .table-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 0.8fr) auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1rem;
   align-items: end;
   margin-bottom: 1rem;
+}
+
+.table-subtoolbar,
+.table-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.table-pagination {
+  justify-content: flex-end;
+  margin-top: 1rem;
+  margin-bottom: 0;
 }
 
 .data-table {

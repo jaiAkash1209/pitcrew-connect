@@ -16,13 +16,37 @@ const usersTableBody = document.getElementById("usersTableBody");
 const mechanicTableBody = document.getElementById("mechanicTableBody");
 const bookingSearchInput = document.getElementById("bookingSearchInput");
 const bookingStatusFilter = document.getElementById("bookingStatusFilter");
+const bookingSortSelect = document.getElementById("bookingSortSelect");
+const bookingDateFrom = document.getElementById("bookingDateFrom");
+const bookingDateTo = document.getElementById("bookingDateTo");
 const exportBookingsButton = document.getElementById("exportBookingsButton");
+const importBookingsButton = document.getElementById("importBookingsButton");
+const importBookingsInput = document.getElementById("importBookingsInput");
+const bookingPrevPageButton = document.getElementById("bookingPrevPageButton");
+const bookingNextPageButton = document.getElementById("bookingNextPageButton");
+const bookingPageInfo = document.getElementById("bookingPageInfo");
 const mechanicSearchInput = document.getElementById("mechanicSearchInput");
 const mechanicStatusFilter = document.getElementById("mechanicStatusFilter");
+const mechanicSortSelect = document.getElementById("mechanicSortSelect");
+const mechanicDateFrom = document.getElementById("mechanicDateFrom");
+const mechanicDateTo = document.getElementById("mechanicDateTo");
 const exportMechanicsButton = document.getElementById("exportMechanicsButton");
+const importMechanicsButton = document.getElementById("importMechanicsButton");
+const importMechanicsInput = document.getElementById("importMechanicsInput");
+const mechanicPrevPageButton = document.getElementById("mechanicPrevPageButton");
+const mechanicNextPageButton = document.getElementById("mechanicNextPageButton");
+const mechanicPageInfo = document.getElementById("mechanicPageInfo");
 const userSearchInput = document.getElementById("userSearchInput");
 const userRoleFilter = document.getElementById("userRoleFilter");
+const userSortSelect = document.getElementById("userSortSelect");
+const userDateFrom = document.getElementById("userDateFrom");
+const userDateTo = document.getElementById("userDateTo");
 const exportUsersButton = document.getElementById("exportUsersButton");
+const importUsersButton = document.getElementById("importUsersButton");
+const importUsersInput = document.getElementById("importUsersInput");
+const userPrevPageButton = document.getElementById("userPrevPageButton");
+const userNextPageButton = document.getElementById("userNextPageButton");
+const userPageInfo = document.getElementById("userPageInfo");
 const adminStatus = document.getElementById("adminStatus");
 const refreshAdminButton = document.getElementById("refreshAdminButton");
 const loginForm = document.getElementById("loginForm");
@@ -88,6 +112,12 @@ let adminDataset = {
   mechanics: [],
   users: [],
   trackers: []
+};
+const ADMIN_PAGE_SIZE = 8;
+const adminTableState = {
+  bookings: { page: 1 },
+  mechanics: { page: 1 },
+  users: { page: 1 }
 };
 
 function setAuth(auth) {
@@ -453,17 +483,166 @@ function getNormalizedSearchValue(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function matchesSearch(record, fields, query) {
-  if (!query) {
+function getDateValue(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function matchesDateRange(value, fromValue, toValue) {
+  if (!fromValue && !toValue) {
     return true;
   }
 
-  return fields.some((field) => getNormalizedSearchValue(record?.[field]).includes(query));
+  const recordTime = getDateValue(value);
+  if (!recordTime) {
+    return false;
+  }
+
+  const fromTime = fromValue ? getDateValue(`${fromValue}T00:00:00`) : 0;
+  const toTime = toValue ? getDateValue(`${toValue}T23:59:59`) : 0;
+  if (fromTime && recordTime < fromTime) {
+    return false;
+  }
+
+  if (toTime && recordTime > toTime) {
+    return false;
+  }
+
+  return true;
+}
+
+function sortRecords(records, sortValue) {
+  const [field, direction] = String(sortValue || "createdAt-desc").split("-");
+  const multiplier = direction === "asc" ? 1 : -1;
+
+  return records.slice().sort((left, right) => {
+    const leftValue = left?.[field];
+    const rightValue = right?.[field];
+
+    if (field === "createdAt") {
+      return (getDateValue(leftValue) - getDateValue(rightValue)) * multiplier;
+    }
+
+    return getNormalizedSearchValue(leftValue).localeCompare(getNormalizedSearchValue(rightValue)) * multiplier;
+  });
+}
+
+function paginateRecords(records, stateKey) {
+  const safeRecords = Array.isArray(records) ? records : [];
+  const totalPages = Math.max(1, Math.ceil(safeRecords.length / ADMIN_PAGE_SIZE));
+  const currentPage = Math.min(adminTableState[stateKey].page, totalPages);
+  adminTableState[stateKey].page = currentPage;
+  const startIndex = (currentPage - 1) * ADMIN_PAGE_SIZE;
+
+  return {
+    records: safeRecords.slice(startIndex, startIndex + ADMIN_PAGE_SIZE),
+    currentPage,
+    totalPages
+  };
+}
+
+function updatePageInfo(element, currentPage, totalPages) {
+  if (!element) {
+    return;
+  }
+
+  element.textContent = `Page ${currentPage} of ${totalPages}`;
+}
+
+function setPagerDisabled(previousButton, nextButton, currentPage, totalPages) {
+  if (previousButton) {
+    previousButton.disabled = currentPage <= 1;
+  }
+
+  if (nextButton) {
+    nextButton.disabled = currentPage >= totalPages;
+  }
+}
+
+function parseCsvRow(line) {
+  const values = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter = line[index + 1];
+
+    if (character === '"' && inQuotes && nextCharacter === '"') {
+      current += '"';
+      index += 1;
+      continue;
+    }
+
+    if (character === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (character === "," && !inQuotes) {
+      values.push(current);
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  values.push(current);
+  return values;
+}
+
+function parseCsv(text) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim());
+  if (!lines.length) {
+    return [];
+  }
+
+  const headers = parseCsvRow(lines[0]).map((header) => header.trim());
+  return lines.slice(1).map((line) => {
+    const values = parseCsvRow(line);
+    return headers.reduce((record, header, index) => {
+      record[header] = values[index] ?? "";
+      return record;
+    }, {});
+  });
+}
+
+async function readTextFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read CSV file"));
+    reader.readAsText(file);
+  });
+}
+
+async function importAdminRows(resource, rows) {
+  const response = await fetch(`/api/admin/import/${resource}`, {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify({ rows })
+  });
+
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "Import failed");
+  }
+
+  return data;
 }
 
 function getFilteredBookings(bookings) {
   const query = getNormalizedSearchValue(bookingSearchInput?.value);
   const status = String(bookingStatusFilter?.value || "").trim();
+  const fromDate = String(bookingDateFrom?.value || "").trim();
+  const toDate = String(bookingDateTo?.value || "").trim();
 
   return (Array.isArray(bookings) ? bookings : []).filter((booking) => {
     const matchesQuery = query
@@ -476,26 +655,30 @@ function getFilteredBookings(bookings) {
         ].some((value) => getNormalizedSearchValue(value).includes(query))
       : true;
     const matchesStatus = status ? String(booking.status || "") === status : true;
-    return matchesQuery && matchesStatus;
+    return matchesQuery && matchesStatus && matchesDateRange(booking.createdAt, fromDate, toDate);
   });
 }
 
 function getFilteredUsers(users) {
   const query = getNormalizedSearchValue(userSearchInput?.value);
   const role = getNormalizedSearchValue(userRoleFilter?.value);
+  const fromDate = String(userDateFrom?.value || "").trim();
+  const toDate = String(userDateTo?.value || "").trim();
 
   return (Array.isArray(users) ? users : []).filter((user) => {
     const matchesQuery = query
       ? [user.name, user.email].some((value) => getNormalizedSearchValue(value).includes(query))
       : true;
     const matchesRole = role ? getNormalizedSearchValue(user.role) === role : true;
-    return matchesQuery && matchesRole;
+    return matchesQuery && matchesRole && matchesDateRange(user.createdAt, fromDate, toDate);
   });
 }
 
 function getFilteredMechanics(mechanics) {
   const query = getNormalizedSearchValue(mechanicSearchInput?.value);
   const status = String(mechanicStatusFilter?.value || "").trim();
+  const fromDate = String(mechanicDateFrom?.value || "").trim();
+  const toDate = String(mechanicDateTo?.value || "").trim();
 
   return (Array.isArray(mechanics) ? mechanics : []).filter((mechanic) => {
     const matchesQuery = query
@@ -508,7 +691,7 @@ function getFilteredMechanics(mechanics) {
         ].some((value) => getNormalizedSearchValue(value).includes(query))
       : true;
     const matchesStatus = status ? String(mechanic.verificationStatus || "") === status : true;
-    return matchesQuery && matchesStatus;
+    return matchesQuery && matchesStatus && matchesDateRange(mechanic.createdAt, fromDate, toDate);
   });
 }
 
@@ -532,53 +715,73 @@ function downloadCsv(filename, rows) {
 }
 
 function exportBookingsCsv() {
-  const bookings = getFilteredBookings(adminDataset.bookings);
+  const bookings = sortRecords(getFilteredBookings(adminDataset.bookings), bookingSortSelect?.value);
   downloadCsv("pitcrew-bookings.csv", [
-    ["Customer", "Service", "Urgency", "Location", "Status", "Assigned Mechanic", "Created"],
+    ["Id", "Customer", "Phone", "Vehicle", "Service", "Urgency", "Location", "Issue", "Status", "Requester Email", "Assigned Mechanic Id", "Assigned Mechanic", "Assigned Mechanic Email", "Created", "Accepted At", "Completed At"],
     ...bookings.map((booking) => [
+      booking.id,
       booking.name,
+      booking.phone,
+      booking.vehicle,
       booking.service,
       booking.urgency,
       booking.location,
+      booking.issue,
       booking.status,
+      booking.requesterEmail,
+      booking.assignedMechanicId,
       booking.assignedMechanicName,
-      formatDateTime(booking.createdAt)
+      booking.assignedMechanicEmail,
+      booking.createdAt,
+      booking.acceptedAt,
+      booking.completedAt
     ])
   ]);
 }
 
 function exportUsersCsv() {
-  const users = getFilteredUsers(adminDataset.users);
+  const users = sortRecords(getFilteredUsers(adminDataset.users), userSortSelect?.value);
   downloadCsv("pitcrew-users.csv", [
-    ["Name", "Email", "Role", "Created"],
-    ...users.map((user) => [user.name, user.email, user.role, formatDateTime(user.createdAt)])
+    ["Id", "Name", "Email", "Role", "Created", "Password"],
+    ...users.map((user) => [user.id, user.name, user.email, user.role, user.createdAt, ""])
   ]);
 }
 
 function exportMechanicsCsv() {
-  const mechanics = getFilteredMechanics(adminDataset.mechanics);
+  const mechanics = sortRecords(getFilteredMechanics(adminDataset.mechanics), mechanicSortSelect?.value);
   downloadCsv("pitcrew-mechanics.csv", [
-    ["Name", "Email", "Phone", "Shop", "Verification", "Call Status", "Assigned Jobs"],
+    ["Id", "Name", "Email", "Phone", "Shop", "Experience", "Location", "Shop Address", "Service", "Specialties", "Verification", "Call Status", "Review Notes", "Call Notes", "Created"],
     ...mechanics.map((mechanic) => [
+      mechanic.id,
       mechanic.name,
       mechanic.email,
       mechanic.phone,
       mechanic.business,
+      mechanic.experience,
+      mechanic.location,
+      mechanic.shopAddress,
+      mechanic.service,
+      mechanic.specialties,
       mechanic.verificationStatus,
       mechanic.verificationCallStatus,
-      adminDataset.bookings.filter((booking) => String(booking.assignedMechanicId || "") === String(mechanic.id || "")).length
+      mechanic.verificationNotes,
+      mechanic.verificationCallNotes,
+      mechanic.createdAt
     ])
   ]);
 }
 
 function renderAdminTables(bookings, users, mechanics) {
-  const filteredBookings = getFilteredBookings(bookings);
-  const filteredUsers = getFilteredUsers(users);
-  const filteredMechanics = getFilteredMechanics(mechanics);
+  const filteredBookings = sortRecords(getFilteredBookings(bookings), bookingSortSelect?.value);
+  const filteredUsers = sortRecords(getFilteredUsers(users), userSortSelect?.value);
+  const filteredMechanics = sortRecords(getFilteredMechanics(mechanics), mechanicSortSelect?.value);
+  const pagedBookings = paginateRecords(filteredBookings, "bookings");
+  const pagedUsers = paginateRecords(filteredUsers, "users");
+  const pagedMechanics = paginateRecords(filteredMechanics, "mechanics");
 
   renderTableBody(
     bookingsTableBody,
-    filteredBookings.slice().reverse().map((booking) => `
+    pagedBookings.records.map((booking) => `
       <tr>
         <td>${escapeHtml(booking.name || "-")}</td>
         <td>${escapeHtml(booking.service || "-")}</td>
@@ -595,10 +798,12 @@ function renderAdminTables(bookings, users, mechanics) {
     "Bookings will appear here after users submit service requests.",
     8
   );
+  updatePageInfo(bookingPageInfo, pagedBookings.currentPage, pagedBookings.totalPages);
+  setPagerDisabled(bookingPrevPageButton, bookingNextPageButton, pagedBookings.currentPage, pagedBookings.totalPages);
 
   renderTableBody(
     usersTableBody,
-    filteredUsers.slice().reverse().map((user) => `
+    pagedUsers.records.map((user) => `
       <tr>
         <td>${escapeHtml(user.name || "-")}</td>
         <td>${escapeHtml(user.email || "-")}</td>
@@ -613,10 +818,12 @@ function renderAdminTables(bookings, users, mechanics) {
     "User accounts will appear here after registration.",
     5
   );
+  updatePageInfo(userPageInfo, pagedUsers.currentPage, pagedUsers.totalPages);
+  setPagerDisabled(userPrevPageButton, userNextPageButton, pagedUsers.currentPage, pagedUsers.totalPages);
 
   renderTableBody(
     mechanicTableBody,
-    filteredMechanics.slice().reverse().map((mechanic) => {
+    pagedMechanics.records.map((mechanic) => {
       const assignedCount = adminDataset.bookings.filter((booking) => {
         return String(booking.assignedMechanicId || "") === String(mechanic.id || "");
       }).length;
@@ -640,6 +847,8 @@ function renderAdminTables(bookings, users, mechanics) {
     "Mechanic accounts will appear here after registration.",
     8
   );
+  updatePageInfo(mechanicPageInfo, pagedMechanics.currentPage, pagedMechanics.totalPages);
+  setPagerDisabled(mechanicPrevPageButton, mechanicNextPageButton, pagedMechanics.currentPage, pagedMechanics.totalPages);
 }
 
 function fillUserEditForm(user) {
@@ -1571,10 +1780,19 @@ if (refreshMechanicJobsButton) {
 [
   bookingSearchInput,
   bookingStatusFilter,
+  bookingSortSelect,
+  bookingDateFrom,
+  bookingDateTo,
   mechanicSearchInput,
   mechanicStatusFilter,
+  mechanicSortSelect,
+  mechanicDateFrom,
+  mechanicDateTo,
   userSearchInput,
-  userRoleFilter
+  userRoleFilter,
+  userSortSelect,
+  userDateFrom,
+  userDateTo
 ].forEach((control) => {
   if (!control) {
     return;
@@ -1582,6 +1800,9 @@ if (refreshMechanicJobsButton) {
 
   const eventName = control.tagName === "SELECT" ? "change" : "input";
   control.addEventListener(eventName, () => {
+    adminTableState.bookings.page = 1;
+    adminTableState.mechanics.page = 1;
+    adminTableState.users.page = 1;
     renderAdminTables(adminDataset.bookings, adminDataset.users, adminDataset.mechanics);
   });
 });
@@ -1597,6 +1818,58 @@ if (exportUsersButton) {
 if (exportMechanicsButton) {
   exportMechanicsButton.addEventListener("click", exportMechanicsCsv);
 }
+
+[
+  [bookingPrevPageButton, "bookings", -1],
+  [bookingNextPageButton, "bookings", 1],
+  [mechanicPrevPageButton, "mechanics", -1],
+  [mechanicNextPageButton, "mechanics", 1],
+  [userPrevPageButton, "users", -1],
+  [userNextPageButton, "users", 1]
+].forEach(([button, key, delta]) => {
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener("click", () => {
+    adminTableState[key].page = Math.max(1, adminTableState[key].page + delta);
+    renderAdminTables(adminDataset.bookings, adminDataset.users, adminDataset.mechanics);
+  });
+});
+
+[
+  [importBookingsButton, importBookingsInput, "bookings"],
+  [importMechanicsButton, importMechanicsInput, "mechanics"],
+  [importUsersButton, importUsersInput, "users"]
+].forEach(([button, input, resource]) => {
+  if (!button || !input) {
+    return;
+  }
+
+  button.addEventListener("click", () => {
+    input.click();
+  });
+
+  input.addEventListener("change", async () => {
+    const [file] = input.files || [];
+    if (!file) {
+      return;
+    }
+
+    adminStatus.textContent = `Importing ${resource} CSV...`;
+    try {
+      const csvText = await readTextFile(file);
+      const rows = parseCsv(csvText);
+      await importAdminRows(resource, rows);
+      adminStatus.textContent = `${resource.charAt(0).toUpperCase()}${resource.slice(1)} imported successfully.`;
+      input.value = "";
+      loadAdminData();
+    } catch (error) {
+      adminStatus.textContent = error.message || `Could not import ${resource} CSV.`;
+      input.value = "";
+    }
+  });
+});
 
 if (clearUserEditButton) {
   clearUserEditButton.addEventListener("click", () => {

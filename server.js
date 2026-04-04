@@ -1452,6 +1452,334 @@ async function getTrackingMatches() {
   return getTrackingMatchesFromRecords(await getTracking());
 }
 
+function mapCsvRow(row) {
+  return Object.entries(row || {}).reduce((record, [key, value]) => {
+    record[String(key || "").trim().toLowerCase()] = String(value ?? "").trim();
+    return record;
+  }, {});
+}
+
+async function importBookingsFromRows(rows) {
+  const records = Array.isArray(rows) ? rows : [];
+
+  if (!useDatabase) {
+    const bookings = readRecords(bookingsPath);
+    records.forEach((row) => {
+      const csv = mapCsvRow(row);
+      const id = csv.id || createId();
+      const bookingIndex = bookings.findIndex((booking) => String(booking.id || "") === id);
+      const nextRecord = {
+        id,
+        createdAt: csv.created || new Date().toISOString(),
+        name: csv.customer || "",
+        phone: csv.phone || "",
+        vehicle: csv.vehicle || "",
+        service: csv.service || "",
+        location: csv.location || "",
+        urgency: csv.urgency || "",
+        issue: csv.issue || "",
+        requesterEmail: String(csv["requester email"] || "").toLowerCase(),
+        status: csv.status || "New",
+        assignedMechanicId: csv["assigned mechanic id"] || "",
+        assignedMechanicName: csv["assigned mechanic"] || "",
+        assignedMechanicEmail: String(csv["assigned mechanic email"] || "").toLowerCase(),
+        acceptedAt: csv["accepted at"] || "",
+        completedAt: csv["completed at"] || ""
+      };
+
+      if (bookingIndex >= 0) {
+        bookings[bookingIndex] = { ...bookings[bookingIndex], ...nextRecord };
+      } else {
+        bookings.push(nextRecord);
+      }
+    });
+    writeRecords(bookingsPath, bookings);
+    return records.length;
+  }
+
+  for (const row of records) {
+    const csv = mapCsvRow(row);
+    const id = csv.id || createId();
+    const existing = await pool.query("SELECT 1 FROM bookings WHERE id = $1 LIMIT 1", [id]);
+    if (existing.rowCount > 0) {
+      await pool.query(
+        `
+          UPDATE bookings
+          SET
+            name = $2,
+            phone = $3,
+            vehicle = $4,
+            service = $5,
+            location = $6,
+            urgency = $7,
+            issue = $8,
+            requester_email = $9,
+            status = $10,
+            assigned_mechanic_id = $11,
+            assigned_mechanic_name = $12,
+            assigned_mechanic_email = $13,
+            accepted_at = $14,
+            completed_at = $15
+          WHERE id = $1
+        `,
+        [
+          id,
+          csv.customer || "",
+          csv.phone || "",
+          csv.vehicle || "",
+          csv.service || "",
+          csv.location || "",
+          csv.urgency || "",
+          csv.issue || "",
+          String(csv["requester email"] || "").toLowerCase(),
+          csv.status || "New",
+          csv["assigned mechanic id"] || "",
+          csv["assigned mechanic"] || "",
+          String(csv["assigned mechanic email"] || "").toLowerCase(),
+          csv["accepted at"] || null,
+          csv["completed at"] || null
+        ]
+      );
+    } else {
+      await pool.query(
+        `
+          INSERT INTO bookings (
+            id, created_at, name, phone, vehicle, service, location, urgency, issue,
+            requester_email, status, assigned_mechanic_id, assigned_mechanic_name,
+            assigned_mechanic_email, accepted_at, completed_at
+          )
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14, $15, $16
+          )
+        `,
+        [
+          id,
+          csv.created || new Date().toISOString(),
+          csv.customer || "",
+          csv.phone || "",
+          csv.vehicle || "",
+          csv.service || "",
+          csv.location || "",
+          csv.urgency || "",
+          csv.issue || "",
+          String(csv["requester email"] || "").toLowerCase(),
+          csv.status || "New",
+          csv["assigned mechanic id"] || "",
+          csv["assigned mechanic"] || "",
+          String(csv["assigned mechanic email"] || "").toLowerCase(),
+          csv["accepted at"] || null,
+          csv["completed at"] || null
+        ]
+      );
+    }
+  }
+
+  return records.length;
+}
+
+async function importUsersFromRows(rows) {
+  const records = Array.isArray(rows) ? rows : [];
+
+  if (!useDatabase) {
+    const users = readRecords(usersPath);
+    for (const row of records) {
+      const csv = mapCsvRow(row);
+      const id = csv.id || createId();
+      const email = String(csv.email || "").toLowerCase();
+      if (!csv.name || !email || !csv.role) {
+        continue;
+      }
+
+      const userIndex = users.findIndex((user) => String(user.id || "") === id || String(user.email || "").toLowerCase() === email);
+      if (userIndex >= 0) {
+        const current = users[userIndex];
+        users[userIndex] = {
+          ...current,
+          name: csv.name,
+          email,
+          role: csv.role || current.role,
+          password: csv.password ? await bcrypt.hash(csv.password, passwordSaltRounds) : current.password
+        };
+      } else if (csv.password) {
+        const nextRecord = {
+          id,
+          createdAt: csv.created || new Date().toISOString(),
+          name: csv.name,
+          email,
+          role: csv.role,
+          password: await bcrypt.hash(csv.password, passwordSaltRounds)
+        };
+        users.push(nextRecord);
+      }
+    }
+    writeRecords(usersPath, users);
+    return records.length;
+  }
+
+  for (const row of records) {
+    const csv = mapCsvRow(row);
+    const id = csv.id || createId();
+    const email = String(csv.email || "").toLowerCase();
+    if (!csv.name || !email || !csv.role) {
+      continue;
+    }
+
+    const existing = await pool.query("SELECT id, password FROM users WHERE id = $1 OR email = $2 LIMIT 1", [id, email]);
+    if (existing.rowCount > 0) {
+      const current = existing.rows[0];
+      await updateUserAccount(current.id, {
+        name: csv.name,
+        email
+      });
+      const passwordValue = csv.password ? await bcrypt.hash(csv.password, passwordSaltRounds) : current.password;
+      await pool.query(
+        `
+          UPDATE users
+          SET
+            role = $2,
+            password = $3
+          WHERE id = $1
+        `,
+        [current.id, csv.role, passwordValue]
+      );
+    } else if (csv.password) {
+      await pool.query(
+        "INSERT INTO users (id, created_at, name, email, password, role) VALUES ($1, $2, $3, $4, $5, $6)",
+        [id, csv.created || new Date().toISOString(), csv.name, email, await bcrypt.hash(csv.password, passwordSaltRounds), csv.role]
+      );
+    }
+  }
+
+  return records.length;
+}
+
+async function importMechanicsFromRows(rows) {
+  const records = Array.isArray(rows) ? rows : [];
+
+  if (!useDatabase) {
+    const mechanics = readRecords(mechanicsPath);
+    for (const row of records) {
+      const csv = mapCsvRow(row);
+      const id = csv.id || createId();
+      const email = String(csv.email || "").toLowerCase();
+      if (!csv.name || !email) {
+        continue;
+      }
+
+      const mechanicIndex = mechanics.findIndex((mechanic) => String(mechanic.id || "") === id || String(mechanic.email || "").toLowerCase() === email);
+      const nextRecord = {
+        id,
+        createdAt: csv.created || new Date().toISOString(),
+        name: csv.name,
+        email,
+        phone: csv.phone || "",
+        business: csv.shop || "",
+        experience: csv.experience || "",
+        location: csv.location || "",
+        shopAddress: csv["shop address"] || "",
+        service: csv.service || "",
+        specialties: csv.specialties || "",
+        verificationStatus: csv.verification || "Pending Verification",
+        verificationCallStatus: csv["call status"] || "Call Pending",
+        verificationNotes: csv["review notes"] || "",
+        verificationCallNotes: csv["call notes"] || ""
+      };
+
+      if (mechanicIndex >= 0) {
+        mechanics[mechanicIndex] = { ...mechanics[mechanicIndex], ...nextRecord };
+      } else {
+        mechanics.push({
+          ...createMechanic(nextRecord),
+          ...nextRecord
+        });
+      }
+    }
+    writeRecords(mechanicsPath, mechanics);
+    return records.length;
+  }
+
+  for (const row of records) {
+    const csv = mapCsvRow(row);
+    const id = csv.id || createId();
+    const email = String(csv.email || "").toLowerCase();
+    if (!csv.name || !email) {
+      continue;
+    }
+
+    const existing = await pool.query("SELECT id FROM mechanics WHERE id = $1 OR email = $2 LIMIT 1", [id, email]);
+    if (existing.rowCount > 0) {
+      await updateMechanicAccount(existing.rows[0].id, {
+        name: csv.name,
+        email,
+        phone: csv.phone || "",
+        business: csv.shop || "",
+        experience: csv.experience || "",
+        location: csv.location || "",
+        shopAddress: csv["shop address"] || "",
+        service: csv.service || "",
+        specialties: csv.specialties || ""
+      });
+      await pool.query(
+        `
+          UPDATE mechanics
+          SET
+            verification_status = $2,
+            verification_call_status = $3,
+            verification_notes = $4,
+            verification_call_notes = $5
+          WHERE id = $1
+        `,
+        [
+          existing.rows[0].id,
+          csv.verification || "Pending Verification",
+          csv["call status"] || "Call Pending",
+          csv["review notes"] || "",
+          csv["call notes"] || ""
+        ]
+      );
+    } else {
+      await pool.query(
+        `
+          INSERT INTO mechanics (
+            id, created_at, name, phone, email, business, experience, location, shop_address,
+            service, specialties, aadhaar_photo, shop_photo, verification_status,
+            verification_call_status, verification_notes, verification_call_notes, verification_history, reviewed_at, approved_at
+          )
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+          )
+        `,
+        [
+          id,
+          csv.created || new Date().toISOString(),
+          csv.name,
+          csv.phone || "",
+          email,
+          csv.shop || "",
+          csv.experience || "",
+          csv.location || "",
+          csv["shop address"] || "",
+          csv.service || "",
+          csv.specialties || "",
+          "",
+          "",
+          csv.verification || "Pending Verification",
+          csv["call status"] || "Call Pending",
+          csv["review notes"] || "",
+          csv["call notes"] || "",
+          "[]",
+          null,
+          null
+        ]
+      );
+    }
+  }
+
+  return records.length;
+}
+
 function requireAdminRole(req, res) {
   const role = String(req.headers["x-user-role"] || "").trim().toLowerCase();
   if (role !== "admin") {
@@ -1980,6 +2308,34 @@ app.delete("/api/bookings/:id", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Booking delete failed" });
+  }
+});
+
+app.post("/api/admin/import/:resource", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
+  const resource = String(req.params?.resource || "").trim().toLowerCase();
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+
+  try {
+    let imported = 0;
+
+    if (resource === "bookings") {
+      imported = await importBookingsFromRows(rows);
+    } else if (resource === "users") {
+      imported = await importUsersFromRows(rows);
+    } else if (resource === "mechanics") {
+      imported = await importMechanicsFromRows(rows);
+    } else {
+      res.status(400).json({ ok: false, error: "Unsupported import resource" });
+      return;
+    }
+
+    res.json({ ok: true, imported });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "Import failed" });
   }
 });
 
