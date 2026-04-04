@@ -1,5 +1,6 @@
 const express = require("express");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
@@ -7,7 +8,10 @@ const { Pool } = require("pg");
 
 const app = express();
 const port = process.env.PORT || 8080;
-const dataDir = path.join(__dirname, "data");
+const defaultLocalDataDir = process.platform === "win32"
+  ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "PitCrewConnect", "data")
+  : path.join(os.homedir(), ".pitcrew-connect", "data");
+const dataDir = process.env.LOCAL_DATA_DIR || defaultLocalDataDir;
 const bookingsPath = path.join(dataDir, "bookings.json");
 const mechanicsPath = path.join(dataDir, "mechanics.json");
 const usersPath = path.join(dataDir, "users.json");
@@ -24,8 +28,9 @@ const pool = useDatabase
   : null;
 
 function ensureFile(filePath) {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  const directory = path.dirname(filePath);
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true });
   }
 
   if (!fs.existsSync(filePath)) {
@@ -1986,7 +1991,7 @@ initializeDatabase()
   .then(() => {
     app.listen(port, () => {
       console.log(
-        `PitCrew Connect server running on port ${port}${useDatabase ? " with PostgreSQL" : " with JSON fallback"}`
+        `PitCrew Connect server running on port ${port}${useDatabase ? " with PostgreSQL" : ` with local storage at ${dataDir}`}`
       );
     });
   })

@@ -8,8 +8,20 @@ Install dependencies and start the server from the project root.
 
 Local development works in two modes:
 
-- without `DATABASE_URL`: JSON fallback storage in `data/*.json`
+- without `DATABASE_URL`: JSON storage on your computer system
 - with `DATABASE_URL`: PostgreSQL storage for durable records
+
+When you run locally on Windows, the app now stores records here by default:
+
+- `%LOCALAPPDATA%\PitCrewConnect\data`
+
+Example path:
+
+- `C:\Users\<your-user>\AppData\Local\PitCrewConnect\data`
+
+You can override that location with:
+
+- `LOCAL_DATA_DIR`
 
 Production rule:
 
@@ -49,12 +61,12 @@ Then open:
 - `DELETE /api/mechanics/:id`
 - `DELETE /api/bookings/:id`
 
-Local JSON fallback records are stored in:
+Local computer storage files are stored in:
 
-- `data/bookings.json`
-- `data/mechanics.json`
-- `data/users.json`
-- `data/tracking.json`
+- `bookings.json`
+- `mechanics.json`
+- `users.json`
+- `tracking.json`
 
 ## Deploy on Render
 
