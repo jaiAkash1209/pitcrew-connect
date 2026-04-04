@@ -608,6 +608,14 @@ textarea:focus {
   box-shadow: var(--shadow);
 }
 
+.table-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 0.8fr) auto;
+  gap: 1rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -844,6 +852,10 @@ body.theme-dark .data-table th {
 
   .site-nav {
     display: none;
+  }
+
+  .table-toolbar {
+    grid-template-columns: 1fr;
   }
 
   .mechanic-card {

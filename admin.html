@@ -61,6 +61,23 @@
           <h2>Customer request records</h2>
           <p>Review structured request intake before assignment and follow-up.</p>
         </div>
+        <div class="table-toolbar">
+          <label>
+            Search
+            <input type="search" id="bookingSearchInput" placeholder="Search customer, service, location">
+          </label>
+          <label>
+            Status
+            <select id="bookingStatusFilter">
+              <option value="">All statuses</option>
+              <option value="New">New</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Completed">Completed</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </label>
+          <button class="button button-secondary" id="exportBookingsButton" type="button">Export CSV</button>
+        </div>
         <div class="table-shell">
           <table class="data-table">
             <thead>
@@ -127,6 +144,23 @@
           <p class="eyebrow">Rule 02B: Mechanic Database</p>
           <h3>Mechanic account records</h3>
           <p>View mechanic records in a sheet layout and update account details from one form.</p>
+        </div>
+        <div class="table-toolbar">
+          <label>
+            Search
+            <input type="search" id="mechanicSearchInput" placeholder="Search name, email, shop, service">
+          </label>
+          <label>
+            Verification
+            <select id="mechanicStatusFilter">
+              <option value="">All statuses</option>
+              <option value="Pending Verification">Pending Verification</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Need More Info">Need More Info</option>
+            </select>
+          </label>
+          <button class="button button-secondary" id="exportMechanicsButton" type="button">Export CSV</button>
         </div>
         <div class="table-shell">
           <table class="data-table">
@@ -202,6 +236,22 @@
           <p class="eyebrow">Rule 03: Account Review</p>
           <h2>User account records</h2>
           <p>Audit role accounts and stored user records from one section.</p>
+        </div>
+        <div class="table-toolbar">
+          <label>
+            Search
+            <input type="search" id="userSearchInput" placeholder="Search name or email">
+          </label>
+          <label>
+            Role
+            <select id="userRoleFilter">
+              <option value="">All roles</option>
+              <option value="user">User</option>
+              <option value="mechanic">Mechanic</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <button class="button button-secondary" id="exportUsersButton" type="button">Export CSV</button>
         </div>
         <div class="table-shell">
           <table class="data-table">

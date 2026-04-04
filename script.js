@@ -14,6 +14,15 @@ const mechanicAssignmentsList = document.getElementById("mechanicAssignmentsList
 const bookingsTableBody = document.getElementById("bookingsTableBody");
 const usersTableBody = document.getElementById("usersTableBody");
 const mechanicTableBody = document.getElementById("mechanicTableBody");
+const bookingSearchInput = document.getElementById("bookingSearchInput");
+const bookingStatusFilter = document.getElementById("bookingStatusFilter");
+const exportBookingsButton = document.getElementById("exportBookingsButton");
+const mechanicSearchInput = document.getElementById("mechanicSearchInput");
+const mechanicStatusFilter = document.getElementById("mechanicStatusFilter");
+const exportMechanicsButton = document.getElementById("exportMechanicsButton");
+const userSearchInput = document.getElementById("userSearchInput");
+const userRoleFilter = document.getElementById("userRoleFilter");
+const exportUsersButton = document.getElementById("exportUsersButton");
 const adminStatus = document.getElementById("adminStatus");
 const refreshAdminButton = document.getElementById("refreshAdminButton");
 const loginForm = document.getElementById("loginForm");
@@ -440,10 +449,136 @@ function renderTableBody(tableBody, rowsHtml, emptyMessage, columnCount) {
   tableBody.innerHTML = rowsHtml.join("");
 }
 
+function getNormalizedSearchValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function matchesSearch(record, fields, query) {
+  if (!query) {
+    return true;
+  }
+
+  return fields.some((field) => getNormalizedSearchValue(record?.[field]).includes(query));
+}
+
+function getFilteredBookings(bookings) {
+  const query = getNormalizedSearchValue(bookingSearchInput?.value);
+  const status = String(bookingStatusFilter?.value || "").trim();
+
+  return (Array.isArray(bookings) ? bookings : []).filter((booking) => {
+    const matchesQuery = query
+      ? [
+          booking.name,
+          booking.service,
+          booking.location,
+          booking.status,
+          booking.assignedMechanicName
+        ].some((value) => getNormalizedSearchValue(value).includes(query))
+      : true;
+    const matchesStatus = status ? String(booking.status || "") === status : true;
+    return matchesQuery && matchesStatus;
+  });
+}
+
+function getFilteredUsers(users) {
+  const query = getNormalizedSearchValue(userSearchInput?.value);
+  const role = getNormalizedSearchValue(userRoleFilter?.value);
+
+  return (Array.isArray(users) ? users : []).filter((user) => {
+    const matchesQuery = query
+      ? [user.name, user.email].some((value) => getNormalizedSearchValue(value).includes(query))
+      : true;
+    const matchesRole = role ? getNormalizedSearchValue(user.role) === role : true;
+    return matchesQuery && matchesRole;
+  });
+}
+
+function getFilteredMechanics(mechanics) {
+  const query = getNormalizedSearchValue(mechanicSearchInput?.value);
+  const status = String(mechanicStatusFilter?.value || "").trim();
+
+  return (Array.isArray(mechanics) ? mechanics : []).filter((mechanic) => {
+    const matchesQuery = query
+      ? [
+          mechanic.name,
+          mechanic.email,
+          mechanic.business,
+          mechanic.service,
+          mechanic.phone
+        ].some((value) => getNormalizedSearchValue(value).includes(query))
+      : true;
+    const matchesStatus = status ? String(mechanic.verificationStatus || "") === status : true;
+    return matchesQuery && matchesStatus;
+  });
+}
+
+function downloadCsv(filename, rows) {
+  if (!rows.length) {
+    return;
+  }
+
+  const csv = rows
+    .map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function exportBookingsCsv() {
+  const bookings = getFilteredBookings(adminDataset.bookings);
+  downloadCsv("pitcrew-bookings.csv", [
+    ["Customer", "Service", "Urgency", "Location", "Status", "Assigned Mechanic", "Created"],
+    ...bookings.map((booking) => [
+      booking.name,
+      booking.service,
+      booking.urgency,
+      booking.location,
+      booking.status,
+      booking.assignedMechanicName,
+      formatDateTime(booking.createdAt)
+    ])
+  ]);
+}
+
+function exportUsersCsv() {
+  const users = getFilteredUsers(adminDataset.users);
+  downloadCsv("pitcrew-users.csv", [
+    ["Name", "Email", "Role", "Created"],
+    ...users.map((user) => [user.name, user.email, user.role, formatDateTime(user.createdAt)])
+  ]);
+}
+
+function exportMechanicsCsv() {
+  const mechanics = getFilteredMechanics(adminDataset.mechanics);
+  downloadCsv("pitcrew-mechanics.csv", [
+    ["Name", "Email", "Phone", "Shop", "Verification", "Call Status", "Assigned Jobs"],
+    ...mechanics.map((mechanic) => [
+      mechanic.name,
+      mechanic.email,
+      mechanic.phone,
+      mechanic.business,
+      mechanic.verificationStatus,
+      mechanic.verificationCallStatus,
+      adminDataset.bookings.filter((booking) => String(booking.assignedMechanicId || "") === String(mechanic.id || "")).length
+    ])
+  ]);
+}
+
 function renderAdminTables(bookings, users, mechanics) {
+  const filteredBookings = getFilteredBookings(bookings);
+  const filteredUsers = getFilteredUsers(users);
+  const filteredMechanics = getFilteredMechanics(mechanics);
+
   renderTableBody(
     bookingsTableBody,
-    (Array.isArray(bookings) ? bookings : []).slice().reverse().map((booking) => `
+    filteredBookings.slice().reverse().map((booking) => `
       <tr>
         <td>${escapeHtml(booking.name || "-")}</td>
         <td>${escapeHtml(booking.service || "-")}</td>
@@ -463,7 +598,7 @@ function renderAdminTables(bookings, users, mechanics) {
 
   renderTableBody(
     usersTableBody,
-    (Array.isArray(users) ? users : []).slice().reverse().map((user) => `
+    filteredUsers.slice().reverse().map((user) => `
       <tr>
         <td>${escapeHtml(user.name || "-")}</td>
         <td>${escapeHtml(user.email || "-")}</td>
@@ -481,7 +616,7 @@ function renderAdminTables(bookings, users, mechanics) {
 
   renderTableBody(
     mechanicTableBody,
-    (Array.isArray(mechanics) ? mechanics : []).slice().reverse().map((mechanic) => {
+    filteredMechanics.slice().reverse().map((mechanic) => {
       const assignedCount = adminDataset.bookings.filter((booking) => {
         return String(booking.assignedMechanicId || "") === String(mechanic.id || "");
       }).length;
@@ -1431,6 +1566,36 @@ if (refreshAdminButton) {
 
 if (refreshMechanicJobsButton) {
   refreshMechanicJobsButton.addEventListener("click", loadMechanicJobs);
+}
+
+[
+  bookingSearchInput,
+  bookingStatusFilter,
+  mechanicSearchInput,
+  mechanicStatusFilter,
+  userSearchInput,
+  userRoleFilter
+].forEach((control) => {
+  if (!control) {
+    return;
+  }
+
+  const eventName = control.tagName === "SELECT" ? "change" : "input";
+  control.addEventListener(eventName, () => {
+    renderAdminTables(adminDataset.bookings, adminDataset.users, adminDataset.mechanics);
+  });
+});
+
+if (exportBookingsButton) {
+  exportBookingsButton.addEventListener("click", exportBookingsCsv);
+}
+
+if (exportUsersButton) {
+  exportUsersButton.addEventListener("click", exportUsersCsv);
+}
+
+if (exportMechanicsButton) {
+  exportMechanicsButton.addEventListener("click", exportMechanicsCsv);
 }
 
 if (clearUserEditButton) {
