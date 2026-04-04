@@ -14,6 +14,7 @@ const usersPath = path.join(dataDir, "users.json");
 const trackingPath = path.join(dataDir, "tracking.json");
 const databaseUrl = process.env.DATABASE_URL || "";
 const useDatabase = Boolean(databaseUrl);
+const isProduction = process.env.NODE_ENV === "production";
 const passwordSaltRounds = 10;
 const pool = useDatabase
   ? new Pool({
@@ -313,6 +314,10 @@ function mapTrackingRow(row) {
 
 async function initializeDatabase() {
   if (!useDatabase) {
+    if (isProduction) {
+      throw new Error("DATABASE_URL is required in production");
+    }
+
     ensureFile(bookingsPath);
     ensureFile(mechanicsPath);
     ensureFile(usersPath);
@@ -1070,6 +1075,200 @@ async function getTrackingMatches() {
   return getTrackingMatchesFromRecords(await getTracking());
 }
 
+function requireAdminRole(req, res) {
+  const role = String(req.headers["x-user-role"] || "").trim().toLowerCase();
+  if (role !== "admin") {
+    res.status(403).json({ ok: false, error: "Admin access required" });
+    return false;
+  }
+
+  return true;
+}
+
+async function deleteBookingRecord(bookingId) {
+  if (!useDatabase) {
+    const bookings = readRecords(bookingsPath);
+    const nextBookings = bookings.filter((booking) => String(booking.id || "") !== String(bookingId || ""));
+    const deleted = nextBookings.length !== bookings.length;
+    if (deleted) {
+      writeRecords(bookingsPath, nextBookings);
+    }
+    return deleted;
+  }
+
+  const result = await pool.query("DELETE FROM bookings WHERE id = $1", [bookingId]);
+  return result.rowCount > 0;
+}
+
+async function deleteMechanicRecord(mechanicId) {
+  if (!useDatabase) {
+    const mechanics = readRecords(mechanicsPath);
+    const mechanic = mechanics.find((item) => String(item.id || "") === String(mechanicId || ""));
+    if (!mechanic) {
+      return false;
+    }
+
+    writeRecords(
+      mechanicsPath,
+      mechanics.filter((item) => String(item.id || "") !== String(mechanicId || ""))
+    );
+
+    const mechanicEmail = String(mechanic.email || "").trim().toLowerCase();
+    if (mechanicEmail) {
+      writeRecords(
+        usersPath,
+        readRecords(usersPath).filter((user) => String(user.email || "").trim().toLowerCase() !== mechanicEmail)
+      );
+      writeRecords(
+        trackingPath,
+        readRecords(trackingPath).filter((tracker) => String(tracker.email || "").trim().toLowerCase() !== mechanicEmail)
+      );
+    }
+
+    const resetBookings = readRecords(bookingsPath).map((booking) => {
+      if (String(booking.assignedMechanicId || "") !== String(mechanicId || "")) {
+        return booking;
+      }
+
+      return {
+        ...booking,
+        status: "New",
+        assignedMechanicId: "",
+        assignedMechanicName: "",
+        assignedMechanicEmail: "",
+        acceptedAt: ""
+      };
+    });
+    writeRecords(bookingsPath, resetBookings);
+    return true;
+  }
+
+  const mechanicResult = await pool.query("SELECT id, email FROM mechanics WHERE id = $1 LIMIT 1", [mechanicId]);
+  if (mechanicResult.rowCount === 0) {
+    return false;
+  }
+
+  const mechanicEmail = String(mechanicResult.rows[0].email || "").trim().toLowerCase();
+  await pool.query("DELETE FROM mechanics WHERE id = $1", [mechanicId]);
+
+  await pool.query(
+    `
+      UPDATE bookings
+      SET
+        status = 'New',
+        assigned_mechanic_id = '',
+        assigned_mechanic_name = '',
+        assigned_mechanic_email = '',
+        accepted_at = NULL
+      WHERE assigned_mechanic_id = $1
+    `,
+    [mechanicId]
+  );
+
+  if (mechanicEmail) {
+    await pool.query("DELETE FROM users WHERE email = $1", [mechanicEmail]);
+    await pool.query("DELETE FROM tracking WHERE email = $1", [mechanicEmail]);
+  }
+
+  return true;
+}
+
+async function deleteUserAccount(userId) {
+  if (!useDatabase) {
+    const users = readRecords(usersPath);
+    const user = users.find((item) => String(item.id || "") === String(userId || ""));
+    if (!user) {
+      return false;
+    }
+
+    const email = String(user.email || "").trim().toLowerCase();
+    const role = String(user.role || "").trim().toLowerCase();
+    writeRecords(
+      usersPath,
+      users.filter((item) => String(item.id || "") !== String(userId || ""))
+    );
+
+    if (email) {
+      writeRecords(
+        trackingPath,
+        readRecords(trackingPath).filter((tracker) => String(tracker.email || "").trim().toLowerCase() !== email)
+      );
+      writeRecords(
+        bookingsPath,
+        readRecords(bookingsPath).filter((booking) => String(booking.requesterEmail || "").trim().toLowerCase() !== email)
+      );
+    }
+
+    if (role === "mechanic") {
+      const mechanics = readRecords(mechanicsPath);
+      const mechanic = mechanics.find((item) => String(item.email || "").trim().toLowerCase() === email);
+      if (mechanic) {
+        writeRecords(
+          mechanicsPath,
+          mechanics.filter((item) => String(item.email || "").trim().toLowerCase() !== email)
+        );
+        writeRecords(
+          bookingsPath,
+          readRecords(bookingsPath).map((booking) => {
+            if (String(booking.assignedMechanicId || "") !== String(mechanic.id || "")) {
+              return booking;
+            }
+
+            return {
+              ...booking,
+              status: "New",
+              assignedMechanicId: "",
+              assignedMechanicName: "",
+              assignedMechanicEmail: "",
+              acceptedAt: ""
+            };
+          })
+        );
+      }
+    }
+
+    return true;
+  }
+
+  const userResult = await pool.query("SELECT id, email, role FROM users WHERE id = $1 LIMIT 1", [userId]);
+  if (userResult.rowCount === 0) {
+    return false;
+  }
+
+  const email = String(userResult.rows[0].email || "").trim().toLowerCase();
+  const role = String(userResult.rows[0].role || "").trim().toLowerCase();
+
+  await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+
+  if (email) {
+    await pool.query("DELETE FROM tracking WHERE email = $1", [email]);
+    await pool.query("DELETE FROM bookings WHERE requester_email = $1", [email]);
+  }
+
+  if (role === "mechanic" && email) {
+    const mechanicResult = await pool.query("SELECT id FROM mechanics WHERE email = $1 LIMIT 1", [email]);
+    if (mechanicResult.rowCount > 0) {
+      const mechanicId = mechanicResult.rows[0].id;
+      await pool.query("DELETE FROM mechanics WHERE email = $1", [email]);
+      await pool.query(
+        `
+          UPDATE bookings
+          SET
+            status = 'New',
+            assigned_mechanic_id = '',
+            assigned_mechanic_name = '',
+            assigned_mechanic_email = '',
+            accepted_at = NULL
+          WHERE assigned_mechanic_id = $1
+        `,
+        [mechanicId]
+      );
+    }
+  }
+
+  return true;
+}
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.static(__dirname));
 
@@ -1096,6 +1295,10 @@ app.post("/api/login", async (req, res) => {
 });
 
 app.get("/api/users", async (_req, res) => {
+  if (!requireAdminRole(_req, res)) {
+    return;
+  }
+
   try {
     res.json(await getUsers());
   } catch (error) {
@@ -1259,6 +1462,10 @@ app.post("/api/mechanics", async (req, res) => {
 });
 
 app.patch("/api/mechanics/:id/verification", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
   try {
     const mechanic = await updateMechanicVerification(String(req.params?.id || ""), req.body || {});
 
@@ -1272,6 +1479,60 @@ app.patch("/api/mechanics/:id/verification", async (req, res) => {
     const message = error.message || "Verification update failed";
     const statusCode = message.includes("Invalid") ? 400 : 500;
     res.status(statusCode).json({ ok: false, error: message });
+  }
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
+  try {
+    const deleted = await deleteUserAccount(String(req.params?.id || ""));
+    if (!deleted) {
+      res.status(404).json({ ok: false, error: "User not found" });
+      return;
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "User delete failed" });
+  }
+});
+
+app.delete("/api/mechanics/:id", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
+  try {
+    const deleted = await deleteMechanicRecord(String(req.params?.id || ""));
+    if (!deleted) {
+      res.status(404).json({ ok: false, error: "Mechanic not found" });
+      return;
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "Mechanic delete failed" });
+  }
+});
+
+app.delete("/api/bookings/:id", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
+  try {
+    const deleted = await deleteBookingRecord(String(req.params?.id || ""));
+    if (!deleted) {
+      res.status(404).json({ ok: false, error: "Booking not found" });
+      return;
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "Booking delete failed" });
   }
 });
 

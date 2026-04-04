@@ -368,6 +368,29 @@ function getVerificationNotePayload(mechanicId) {
   };
 }
 
+function getAdminHeaders() {
+  const auth = getAuth();
+  return {
+    "Content-Type": "application/json",
+    "X-User-Role": auth?.role || "",
+    "X-User-Email": auth?.email || ""
+  };
+}
+
+async function deleteAdminRecord(resource, recordId) {
+  const response = await fetch(`/api/${resource}/${recordId}`, {
+    method: "DELETE",
+    headers: getAdminHeaders()
+  });
+
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "Delete failed");
+  }
+
+  return data;
+}
+
 function renderCards(listElement, records, type) {
   if (!listElement) {
     return;
@@ -399,6 +422,9 @@ function renderCards(listElement, records, type) {
             <p><strong>Vehicle:</strong> ${escapeHtml(record.vehicle || "-")}</p>
             <p><strong>Phone:</strong> ${escapeHtml(record.phone || "-")}</p>
             <p><strong>Issue:</strong> ${escapeHtml(record.issue || "-")}</p>
+            <div class="verification-actions">
+              <button class="button button-secondary action-button" data-delete-resource="bookings" data-delete-id="${escapeHtml(record.id || "")}">Delete booking</button>
+            </div>
           </article>
         `;
       }
@@ -412,6 +438,9 @@ function renderCards(listElement, records, type) {
               <span>${escapeHtml(record.email || "No email")}</span>
             </div>
             <p><strong>Created:</strong> ${escapeHtml(record.createdAt || "-")}</p>
+            <div class="verification-actions">
+              <button class="button button-secondary action-button" data-delete-resource="users" data-delete-id="${escapeHtml(record.id || "")}">Delete account</button>
+            </div>
           </article>
         `;
       }
@@ -515,6 +544,7 @@ function renderCards(listElement, records, type) {
               <button class="button button-primary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Approved">Approve</button>
               <button class="button button-secondary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Need More Info">Need info</button>
               <button class="button button-secondary action-button" data-verify-status="${escapeHtml(record.id || "")}" data-value="Rejected">Reject</button>
+              <button class="button button-secondary action-button" data-delete-resource="mechanics" data-delete-id="${escapeHtml(record.id || "")}">Delete mechanic</button>
             </div>
           </article>
         `;
@@ -589,9 +619,7 @@ function renderCards(listElement, records, type) {
 async function updateMechanicVerification(mechanicId, payload) {
   const response = await fetch(`/api/mechanics/${mechanicId}/verification`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: getAdminHeaders(),
     body: JSON.stringify(payload)
   });
 
@@ -840,7 +868,9 @@ async function loadAdminData() {
     const [bookingsResponse, mechanicsResponse, usersResponse, trackingResponse, matches] = await Promise.all([
       fetch("/api/bookings"),
       fetch("/api/mechanics"),
-      fetch("/api/users"),
+      fetch("/api/users", {
+        headers: getAdminHeaders()
+      }),
       fetch("/api/tracking"),
       loadTrackingMatches()
     ]);
@@ -1337,6 +1367,28 @@ document.addEventListener("click", async (event) => {
       loadMechanicJobs();
     } catch (error) {
       mechanicJobsStatus.textContent = error.message || "Could not accept job.";
+    }
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-delete-resource]");
+  if (deleteButton && adminStatus) {
+    const resource = deleteButton.getAttribute("data-delete-resource");
+    const recordId = deleteButton.getAttribute("data-delete-id");
+    const labels = {
+      users: "account",
+      mechanics: "mechanic",
+      bookings: "booking"
+    };
+    const label = labels[resource] || "record";
+
+    adminStatus.textContent = `Deleting ${label}...`;
+    try {
+      await deleteAdminRecord(resource, recordId);
+      adminStatus.textContent = `${label.charAt(0).toUpperCase()}${label.slice(1)} deleted by admin.`;
+      loadAdminData();
+    } catch (error) {
+      adminStatus.textContent = error.message || `Could not delete ${label}.`;
     }
   }
 });
