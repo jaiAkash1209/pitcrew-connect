@@ -86,3 +86,5 @@ Important:
 - deployed accounts and records persist only when `DATABASE_URL` is configured
 - if `DATABASE_URL` is missing, the app falls back to local JSON files, which are not durable on hosted deployments
 - admin is the only role allowed to delete users, mechanics, and bookings through the app
+- production now also requires `SESSION_SECRET` for signed login sessions
+- set `SESSION_SECRET` in Render to a long random value before deploying the secured build

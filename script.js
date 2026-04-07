@@ -450,12 +450,32 @@ function getVerificationNotePayload(mechanicId) {
 }
 
 function getAdminHeaders() {
-  const auth = getAuth();
   return {
-    "Content-Type": "application/json",
-    "X-User-Role": auth?.role || "",
-    "X-User-Email": auth?.email || ""
+    "Content-Type": "application/json"
   };
+}
+
+async function loadSessionUser() {
+  const response = await fetch("/api/session");
+  const data = await response.json().catch(() => ({ ok: false }));
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "Session unavailable");
+  }
+
+  setAuth(data.user);
+  return data.user;
+}
+
+function handleProtectedRequestFailure(error) {
+  if (!error) {
+    return;
+  }
+
+  const message = String(error.message || "");
+  if (message.includes("Authentication required") || message.includes("Admin access required") || message.includes("Session expired")) {
+    clearAuth();
+    redirectToLogin();
+  }
 }
 
 async function deleteAdminRecord(resource, recordId) {
@@ -1751,6 +1771,7 @@ async function loadAdminData() {
     updateTrackingMap(trackingRecords, matches);
     adminStatus.textContent = "Dashboard updated.";
   } catch (error) {
+    handleProtectedRequestFailure(error);
     adminStatus.textContent = "Could not load admin data right now.";
   }
 }
@@ -1793,20 +1814,34 @@ async function loadMechanicJobs() {
 applyTheme(getTheme());
 ensureThemeToggle();
 
-function requireDashboardAccess(requiredRole) {
+async function requireDashboardAccess(requiredRole) {
   if (!requiredRole) {
     return;
   }
 
-  const auth = getAuth();
-  if (!auth || (requiredRole !== "auth" && auth.role !== requiredRole)) {
+  const localAuth = getAuth();
+  if (!localAuth) {
     redirectToLogin();
     return;
   }
 
-  if (dashboardWelcome) {
-    dashboardWelcome.textContent = `${auth.name}, this is your ${requiredRole} dashboard.`;
+  try {
+    const auth = await loadSessionUser();
+    if (requiredRole !== "auth" && auth.role !== requiredRole) {
+      clearAuth();
+      redirectToLogin();
+      return;
+    }
+
+    if (dashboardWelcome) {
+      dashboardWelcome.textContent = `${auth.name}, this is your ${requiredRole} dashboard.`;
+    }
+  } catch (error) {
+    clearAuth();
+    redirectToLogin();
+    return;
   }
+
 }
 
 async function refreshTrackingFeed() {
@@ -2275,8 +2310,15 @@ if (stopTrackingButton) {
 }
 
 logoutLinks.forEach((link) => {
-  link.addEventListener("click", (event) => {
+  link.addEventListener("click", async (event) => {
     event.preventDefault();
+    try {
+      await fetch("/api/logout", {
+        method: "POST"
+      });
+    } catch (error) {
+      // Ignore logout network errors and clear local state anyway.
+    }
     clearAuth();
     redirectToLogin();
   });
@@ -2325,6 +2367,7 @@ document.addEventListener("click", async (event) => {
         loadAdminData();
       }
     } catch (error) {
+      handleProtectedRequestFailure(error);
       adminStatus.textContent = "Could not update mechanic verification.";
     }
     return;
@@ -2350,6 +2393,7 @@ document.addEventListener("click", async (event) => {
         loadAdminData();
       }
     } catch (error) {
+      handleProtectedRequestFailure(error);
       adminStatus.textContent = "Could not update call verification.";
     }
     return;
@@ -2397,6 +2441,7 @@ document.addEventListener("click", async (event) => {
         loadAdminData();
       }
     } catch (error) {
+      handleProtectedRequestFailure(error);
       adminStatus.textContent = error.message || `Could not delete ${label}.`;
     }
   }
@@ -2436,7 +2481,8 @@ if (loginForm && loginMessage) {
         throw new Error(data.error || "Login failed");
       }
 
-      setAuth(data.user);
+      const sessionUser = await loadSessionUser();
+      setAuth(sessionUser);
       loginMessage.textContent = "Login successful. Redirecting...";
       window.setTimeout(() => {
         window.location.replace(getDashboardPath(role));

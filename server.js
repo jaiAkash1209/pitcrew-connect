@@ -20,6 +20,9 @@ const databaseUrl = process.env.DATABASE_URL || "";
 const useDatabase = Boolean(databaseUrl);
 const isProduction = process.env.NODE_ENV === "production";
 const passwordSaltRounds = 10;
+const sessionCookieName = "pitcrew_session";
+const sessionDurationMs = 1000 * 60 * 60 * 24 * 7;
+const sessionSecret = process.env.SESSION_SECRET || (isProduction ? "" : "pitcrew-dev-session-secret");
 const pool = useDatabase
   ? new Pool({
       connectionString: databaseUrl,
@@ -70,6 +73,101 @@ function createId() {
   }
 
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function toBase64Url(value) {
+  return Buffer.from(value, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function fromBase64Url(value) {
+  const normalized = String(value || "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+  return Buffer.from(`${normalized}${padding}`, "base64").toString("utf8");
+}
+
+function signValue(value) {
+  return crypto.createHmac("sha256", sessionSecret).update(value).digest("base64url");
+}
+
+function parseCookies(cookieHeader) {
+  return String(cookieHeader || "")
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .reduce((cookies, item) => {
+      const separatorIndex = item.indexOf("=");
+      if (separatorIndex < 0) {
+        return cookies;
+      }
+
+      const key = item.slice(0, separatorIndex).trim();
+      const value = item.slice(separatorIndex + 1).trim();
+      cookies[key] = decodeURIComponent(value);
+      return cookies;
+    }, {});
+}
+
+function serializeCookie(name, value, options = {}) {
+  const segments = [`${name}=${encodeURIComponent(value)}`];
+  if (options.maxAge !== undefined) {
+    segments.push(`Max-Age=${Math.max(0, Math.floor(options.maxAge))}`);
+  }
+  if (options.httpOnly) {
+    segments.push("HttpOnly");
+  }
+  if (options.sameSite) {
+    segments.push(`SameSite=${options.sameSite}`);
+  }
+  if (options.secure) {
+    segments.push("Secure");
+  }
+  segments.push(`Path=${options.path || "/"}`);
+  return segments.join("; ");
+}
+
+function createSessionToken(user) {
+  const payload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    exp: Date.now() + sessionDurationMs
+  };
+  const encodedPayload = toBase64Url(JSON.stringify(payload));
+  const signature = signValue(encodedPayload);
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifySessionToken(token) {
+  if (!token || !sessionSecret) {
+    return null;
+  }
+
+  const [encodedPayload, signature] = String(token).split(".");
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+
+  const expectedSignature = signValue(encodedPayload);
+  if (signature !== expectedSignature) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(fromBase64Url(encodedPayload));
+    if (!payload?.id || !payload?.role || !payload?.email || Number(payload.exp || 0) < Date.now()) {
+      return null;
+    }
+    return payload;
+  } catch (error) {
+    return null;
+  }
 }
 
 function createBooking(payload) {
@@ -1010,6 +1108,35 @@ async function resetUserPassword(email, role, newPassword) {
   return result.rowCount > 0;
 }
 
+async function findUserById(userId) {
+  const id = String(userId || "").trim();
+  if (!id) {
+    return null;
+  }
+
+  if (!useDatabase) {
+    const user = readRecords(usersPath).find((item) => String(item.id || "") === id);
+    return user || null;
+  }
+
+  const result = await pool.query(
+    "SELECT id, created_at, name, email, role FROM users WHERE id = $1 LIMIT 1",
+    [id]
+  );
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+  return {
+    id: row.id,
+    createdAt: row.created_at || "",
+    name: row.name || "",
+    email: row.email || "",
+    role: row.role || ""
+  };
+}
+
 async function upsertMechanic(payload) {
   const email = String(payload.email || "").trim().toLowerCase();
 
@@ -1780,8 +1907,48 @@ async function importMechanicsFromRows(rows) {
   return records.length;
 }
 
+function setSessionCookie(res, user) {
+  const token = createSessionToken(user);
+  res.setHeader(
+    "Set-Cookie",
+    serializeCookie(sessionCookieName, token, {
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: isProduction,
+      path: "/",
+      maxAge: Math.floor(sessionDurationMs / 1000)
+    })
+  );
+}
+
+function clearSessionCookie(res) {
+  res.setHeader(
+    "Set-Cookie",
+    serializeCookie(sessionCookieName, "", {
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: isProduction,
+      path: "/",
+      maxAge: 0
+    })
+  );
+}
+
+function requireAuthenticatedUser(req, res) {
+  if (!req.authUser) {
+    res.status(401).json({ ok: false, error: "Authentication required" });
+    return false;
+  }
+
+  return true;
+}
+
 function requireAdminRole(req, res) {
-  const role = String(req.headers["x-user-role"] || "").trim().toLowerCase();
+  if (!requireAuthenticatedUser(req, res)) {
+    return false;
+  }
+
+  const role = String(req.authUser?.role || "").trim().toLowerCase();
   if (role !== "admin") {
     res.status(403).json({ ok: false, error: "Admin access required" });
     return false;
@@ -1974,6 +2141,25 @@ async function deleteUserAccount(userId) {
   return true;
 }
 
+if (isProduction && !sessionSecret) {
+  throw new Error("SESSION_SECRET is required in production");
+}
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(self)");
+  next();
+});
+
+app.use((req, res, next) => {
+  const cookies = parseCookies(req.headers.cookie);
+  const session = verifySessionToken(cookies[sessionCookieName]);
+  req.authUser = session || null;
+  next();
+});
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.static(__dirname));
 
@@ -1990,6 +2176,7 @@ app.post("/api/login", async (req, res) => {
       return;
     }
 
+    setSessionCookie(res, user);
     res.json({
       ok: true,
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
@@ -1997,6 +2184,31 @@ app.post("/api/login", async (req, res) => {
   } catch (error) {
     res.status(500).json({ ok: false, error: "Login failed" });
   }
+});
+
+app.get("/api/session", async (req, res) => {
+  if (!req.authUser) {
+    res.status(401).json({ ok: false, error: "Not authenticated" });
+    return;
+  }
+
+  const freshUser = await findUserById(req.authUser.id);
+  if (!freshUser || String(freshUser.role || "").trim().toLowerCase() !== String(req.authUser.role || "").trim().toLowerCase()) {
+    clearSessionCookie(res);
+    res.status(401).json({ ok: false, error: "Session expired" });
+    return;
+  }
+
+  setSessionCookie(res, freshUser);
+  res.json({
+    ok: true,
+    user: { id: freshUser.id, name: freshUser.name, email: freshUser.email, role: freshUser.role }
+  });
+});
+
+app.post("/api/logout", (req, res) => {
+  clearSessionCookie(res);
+  res.json({ ok: true });
 });
 
 app.post("/api/password/reset", async (req, res) => {
