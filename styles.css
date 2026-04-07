@@ -721,10 +721,17 @@ textarea:focus {
   text-transform: uppercase;
   color: var(--muted);
   background: var(--table-head);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .data-table td {
   color: var(--text);
+}
+
+.data-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.012);
 }
 
 .data-table tbody tr:hover td {
@@ -878,8 +885,40 @@ textarea:focus {
   gap: 1rem;
 }
 
+.section-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.section-panel-head h3 {
+  margin: 0.2rem 0 0;
+}
+
+.section-panel-head p:last-child {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--muted);
+}
+
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.68rem;
+  border-radius: 999px;
+  background: rgba(255, 107, 44, 0.09);
+  color: var(--accent-dark);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .compact-review-shell {
-  padding: 0.35rem;
+  padding: 0.5rem;
+  border-radius: 1.6rem;
+  box-shadow: 0 18px 34px rgba(7, 14, 24, 0.12);
 }
 
 .compact-review-list {
@@ -961,6 +1000,7 @@ textarea:focus {
 .review-main-card {
   display: grid;
   gap: 1.25rem;
+  max-width: 1080px;
 }
 
 .review-header-card {
@@ -979,6 +1019,10 @@ textarea:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.review-page-head {
+  margin-bottom: 1rem;
 }
 
 .review-section-grid {
@@ -1051,6 +1095,15 @@ body.theme-dark .status-pill {
 
 body.theme-dark .data-table th {
   background: var(--table-head);
+}
+
+body.theme-dark .data-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+body.theme-dark .section-kicker {
+  background: rgba(255, 138, 87, 0.12);
+  color: #ffb38b;
 }
 
 body.theme-dark .muted-section {
@@ -1151,6 +1204,11 @@ body.theme-dark .eyebrow {
 
   .table-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .section-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .review-header-card {
