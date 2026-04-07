@@ -41,6 +41,11 @@ button {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body {
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+
 body.theme-dark {
   --surface: rgba(19, 25, 33, 0.9);
   --surface-strong: rgba(24, 31, 41, 0.98);
@@ -152,7 +157,15 @@ button {
 }
 
 .theme-toggle {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
   margin-right: 0.75rem;
+  border-radius: 999px;
+  font-size: 1.05rem;
+  line-height: 1;
+  box-shadow: none;
 }
 
 .nav-cta,
@@ -214,6 +227,7 @@ h1 {
   font-family: "Space Grotesk", sans-serif;
   font-size: clamp(3rem, 7vw, 5.2rem);
   max-width: 12ch;
+  font-weight: 700;
 }
 
 .dashboard-title {
@@ -230,15 +244,34 @@ h2 {
   font-family: "Space Grotesk", sans-serif;
   font-size: clamp(2rem, 4.2vw, 3rem);
   margin-bottom: 1rem;
+  font-weight: 700;
 }
 
 h3 {
   font-size: 1.25rem;
   margin-bottom: 0.8rem;
+  font-weight: 700;
 }
 
 p {
   line-height: 1.7;
+}
+
+.dashboard-subtitle,
+.hero-text,
+.section-heading p,
+.request-copy p,
+.site-footer p,
+.dispatch-meta,
+.mini-label,
+.rating-row,
+.footer-links,
+.feature-list,
+label,
+.form-message,
+.table-pagination,
+.admin-note {
+  font-size: 0.98rem;
 }
 
 .hero-text,
@@ -904,6 +937,42 @@ body.theme-dark .data-table th {
 
 body.theme-dark .muted-section {
   background: rgba(255, 255, 255, 0.02);
+}
+
+body.theme-dark h1,
+body.theme-dark h2,
+body.theme-dark h3 {
+  color: #f4f8fc;
+}
+
+body.theme-dark p,
+body.theme-dark label,
+body.theme-dark .form-message,
+body.theme-dark .dashboard-subtitle,
+body.theme-dark .hero-text,
+body.theme-dark .section-heading p,
+body.theme-dark .request-copy p,
+body.theme-dark .site-footer p,
+body.theme-dark .dispatch-meta,
+body.theme-dark .mini-label,
+body.theme-dark .rating-row,
+body.theme-dark .footer-links,
+body.theme-dark .feature-list,
+body.theme-dark .table-pagination,
+body.theme-dark .admin-note {
+  color: #afbcc9;
+}
+
+body.theme-dark .data-table td,
+body.theme-dark .brand,
+body.theme-dark .site-nav,
+body.theme-dark .auth-inline-link a {
+  color: #edf3f9;
+}
+
+body.theme-dark .theme-toggle {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(236, 242, 248, 0.14);
 }
 
 body.theme-dark .request-form,

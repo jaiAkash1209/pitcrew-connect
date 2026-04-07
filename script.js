@@ -172,6 +172,12 @@ function getTrackerId() {
 
 function applyTheme(theme) {
   document.body.classList.toggle("theme-dark", theme === "dark");
+  const toggle = document.querySelector(".theme-toggle");
+  if (toggle) {
+    toggle.textContent = theme === "dark" ? "☀" : "☾";
+    toggle.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+    toggle.setAttribute("title", theme === "dark" ? "Light mode" : "Dark mode");
+  }
 }
 
 function toggleTheme() {
@@ -195,7 +201,9 @@ function ensureThemeToggle() {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "button button-secondary theme-toggle";
-  button.textContent = "Night Mode";
+  button.textContent = getTheme() === "dark" ? "☀" : "☾";
+  button.setAttribute("aria-label", getTheme() === "dark" ? "Switch to light mode" : "Switch to dark mode");
+  button.setAttribute("title", getTheme() === "dark" ? "Light mode" : "Dark mode");
   button.addEventListener("click", toggleTheme);
 
   if (navCta) {
