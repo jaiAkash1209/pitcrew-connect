@@ -987,6 +987,57 @@ function renderPendingMechanicQueue(listElement, records) {
   `;
 }
 
+function renderMechanicReviewHistoryTable(listElement, records) {
+  if (!listElement) {
+    return;
+  }
+
+  if (!records.length) {
+    listElement.innerHTML = `
+      <article class="empty-state">
+        <h3>No review history yet</h3>
+        <p class="admin-note">Admin call notes and approval history will appear here after review begins.</p>
+      </article>
+    `;
+    return;
+  }
+
+  listElement.innerHTML = `
+    <table class="data-table compact-review-table">
+      <thead>
+        <tr>
+          <th>Mechanic</th>
+          <th>Status</th>
+          <th>Call</th>
+          <th>Reviewed</th>
+          <th>Review</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${records
+          .slice()
+          .reverse()
+          .map((record) => {
+            const latestEntry = Array.isArray(record.verificationHistory) ? record.verificationHistory.slice(-1)[0] : null;
+            const reviewLabel = latestEntry?.verificationNotes || record.verificationNotes || "-";
+            return `
+              <tr>
+                <td class="truncate-cell" title="${escapeHtml(record.name || "Unnamed mechanic")}">
+                  <strong>${escapeHtml(record.name || "Unnamed mechanic")}</strong>
+                </td>
+                <td>${escapeHtml(record.verificationStatus || "Pending Verification")}</td>
+                <td>${escapeHtml(record.verificationCallStatus || "Call Pending")}</td>
+                <td class="truncate-cell" title="${escapeHtml(formatDateTime(record.reviewedAt))}">${escapeHtml(formatDateTime(record.reviewedAt))}</td>
+                <td class="truncate-cell" title="${escapeHtml(reviewLabel)}">${escapeHtml(reviewLabel)}</td>
+              </tr>
+            `;
+          })
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
 function renderCards(listElement, records, type) {
   if (!listElement) {
     return;
@@ -1693,7 +1744,7 @@ async function loadAdminData() {
 
     renderAdminTables(bookingRecords, userRecords, mechanicRecords);
     renderPendingMechanicQueue(pendingMechanicsList, pendingMechanics);
-    renderCards(mechanicReviewHistoryList, reviewedMechanics, "mechanicReviewHistory");
+    renderMechanicReviewHistoryTable(mechanicReviewHistoryList, reviewedMechanics);
     renderCards(mechanicAssignmentsList, mechanicAssignments, "mechanicAssignments");
     renderCards(adminTrackingList, trackingRecords, "tracking");
     renderCards(adminMatchesList, matches, "matches");
