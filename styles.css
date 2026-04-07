@@ -877,6 +877,7 @@ textarea:focus {
 
 .compact-review-table {
   min-width: 100%;
+  table-layout: fixed;
 }
 
 .table-secondary {
@@ -884,6 +885,26 @@ textarea:focus {
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 500;
+}
+
+.truncate-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-link {
+  color: var(--accent-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.table-link:hover {
+  text-decoration: underline;
+}
+
+.table-muted {
+  color: var(--muted);
 }
 
 .admin-subheading {

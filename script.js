@@ -940,11 +940,14 @@ function renderPendingMechanicQueue(listElement, records) {
     <table class="data-table compact-review-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Phone</th>
+          <th>Request</th>
+          <th>Mechanic</th>
+          <th>Mobile</th>
           <th>Status</th>
           <th>Call</th>
-          <th>Action</th>
+          <th>Aadhaar</th>
+          <th>Shop</th>
+          <th>Review</th>
         </tr>
       </thead>
       <tbody>
@@ -952,17 +955,28 @@ function renderPendingMechanicQueue(listElement, records) {
           .slice()
           .reverse()
           .map((record) => {
+            const requestLabel = record.createdAt
+              ? formatDateTime(record.createdAt)
+              : String(record.id || "").slice(0, 8) || "-";
+            const aadhaarLink = record.aadhaarPhoto
+              ? `<a class="table-link" href="${escapeHtml(record.aadhaarPhoto)}" target="_blank" rel="noopener noreferrer">View</a>`
+              : `<span class="table-muted">-</span>`;
+            const shopLink = record.shopPhoto
+              ? `<a class="table-link" href="${escapeHtml(record.shopPhoto)}" target="_blank" rel="noopener noreferrer">View</a>`
+              : `<span class="table-muted">-</span>`;
             return `
               <tr>
-                <td>
+                <td class="truncate-cell" title="${escapeHtml(requestLabel)}">${escapeHtml(requestLabel)}</td>
+                <td class="truncate-cell" title="${escapeHtml(record.name || "Unnamed mechanic")}">
                   <strong>${escapeHtml(record.name || "Unnamed mechanic")}</strong>
-                  <div class="table-secondary">${escapeHtml(record.business || "No shop")}</div>
                 </td>
-                <td>${escapeHtml(record.phone || record.email || "-")}</td>
+                <td>${escapeHtml(record.phone || "-")}</td>
                 <td>${escapeHtml(record.verificationStatus || "Pending Verification")}</td>
                 <td>${escapeHtml(record.verificationCallStatus || "Call Pending")}</td>
+                <td>${aadhaarLink}</td>
+                <td>${shopLink}</td>
                 <td>
-                  <a class="button button-secondary action-button" href="mechanic-review.html?id=${encodeURIComponent(record.id || "")}">Open details</a>
+                  <a class="table-link" href="mechanic-review.html?id=${encodeURIComponent(record.id || "")}">Details</a>
                 </td>
               </tr>
             `;
