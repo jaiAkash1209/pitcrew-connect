@@ -107,6 +107,7 @@ let trackingMap = null;
 let trackingMarkers = new Map();
 let trackingRoutes = new Map();
 let trackingAccuracyCircles = new Map();
+let trackingRouteBadges = new Map();
 let adminDataset = {
   bookings: [],
   mechanics: [],
@@ -1293,26 +1294,60 @@ function updateTrackingMap(trackers, matches) {
       [mechanicLatitude, mechanicLongitude]
     ];
     const routeLine = trackingRoutes.get(routeId);
+    const routeCenter = [
+      (userLatitude + mechanicLatitude) / 2,
+      (userLongitude + mechanicLongitude) / 2
+    ];
+    const routeLabel = `${match.distanceKm ?? "-"} km`;
 
     if (routeLine) {
       routeLine.setLatLngs(routePoints);
+      const routeBadge = trackingRouteBadges.get(routeId);
+      if (routeBadge) {
+        routeBadge.setLatLng(routeCenter);
+        routeBadge.setTooltipContent(routeLabel);
+      }
       return;
     }
 
     const nextRoute = window.L.polyline(routePoints, {
       color: "#ff6b2c",
-      weight: 4,
-      opacity: 0.75,
-      dashArray: "10 8"
+      weight: 5,
+      opacity: 0.88,
+      dashArray: "12 8",
+      lineCap: "round",
+      lineJoin: "round",
+      className: "assigned-route-line"
     }).addTo(trackingMap);
 
+    const nextBadge = window.L.marker(routeCenter, {
+      interactive: false,
+      icon: window.L.divIcon({
+        className: "route-badge-icon",
+        html: `<span class="route-badge">${escapeHtml(routeLabel)}</span>`
+      })
+    })
+      .addTo(trackingMap)
+      .bindTooltip(routeLabel, {
+        permanent: false,
+        direction: "top"
+      });
+
     trackingRoutes.set(routeId, nextRoute);
+    trackingRouteBadges.set(routeId, nextBadge);
   });
 
   trackingRoutes.forEach((routeLine, routeId) => {
     if (!activeRouteIds.has(routeId)) {
       trackingMap.removeLayer(routeLine);
       trackingRoutes.delete(routeId);
+    }
+  });
+
+  trackingRouteBadges.forEach((routeBadge, routeId) => {
+    if (!activeRouteIds.has(routeId)) {
+      trackingMap.removeLayer(routeBadge);
+      trackingRouteBadges.delete(routeId);
     }
   });
 }
@@ -1539,10 +1574,7 @@ async function loadRoleTrackingMap() {
 
     let match = null;
     if (dashboardRole === "mechanic" && mechanicRecord) {
-      const activeBooking = bookingList
-        .slice()
-        .reverse()
-        .find((booking) => String(booking.assignedMechanicId || "") === String(mechanicRecord.id || ""));
+      const activeBooking = getLatestAssignedBookingForMechanic(bookingList, mechanicRecord.id);
       const userTracker = records.find((tracker) => {
         return String(tracker.email || "").trim().toLowerCase() === String(activeBooking?.requesterEmail || "").trim().toLowerCase();
       });
@@ -1562,10 +1594,7 @@ async function loadRoleTrackingMap() {
     }
 
     if (dashboardRole === "user") {
-      const activeBooking = bookingList
-        .slice()
-        .reverse()
-        .find((booking) => String(booking.requesterEmail || "").trim().toLowerCase() === String(auth.email || "").trim().toLowerCase());
+      const activeBooking = getLatestAssignedBookingForUser(bookingList, auth.email);
       const userTracker = records.find((tracker) => {
         return String(tracker.email || "").trim().toLowerCase() === String(auth.email || "").trim().toLowerCase();
       });
@@ -1628,6 +1657,32 @@ function calculateApproxDistance(pointA, pointB) {
     Math.cos(latA) * Math.cos(latB) * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
 
   return Number((2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))).toFixed(2));
+}
+
+function isAssignedBookingActive(booking) {
+  const status = String(booking?.status || "").trim().toLowerCase();
+  return Boolean(String(booking?.assignedMechanicId || "").trim()) && !["completed", "closed"].includes(status);
+}
+
+function getLatestAssignedBookingForUser(bookings, email) {
+  return (Array.isArray(bookings) ? bookings : [])
+    .slice()
+    .reverse()
+    .find((booking) => {
+      return (
+        String(booking.requesterEmail || "").trim().toLowerCase() === String(email || "").trim().toLowerCase() &&
+        isAssignedBookingActive(booking)
+      );
+    }) || null;
+}
+
+function getLatestAssignedBookingForMechanic(bookings, mechanicId) {
+  return (Array.isArray(bookings) ? bookings : [])
+    .slice()
+    .reverse()
+    .find((booking) => {
+      return String(booking.assignedMechanicId || "") === String(mechanicId || "") && isAssignedBookingActive(booking);
+    }) || null;
 }
 
 async function sendTrackingPosition(position) {

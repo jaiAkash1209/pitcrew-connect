@@ -814,6 +814,29 @@ textarea:focus {
   color: var(--ink-blue);
 }
 
+.assigned-route-line {
+  animation: route-dash-flow 1.6s linear infinite;
+}
+
+.route-badge-icon {
+  background: transparent;
+  border: 0;
+}
+
+.route-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(31, 65, 99, 0.92);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(31, 65, 99, 0.2);
+}
+
 .verification-card {
   display: grid;
   gap: 1rem;
@@ -939,6 +962,12 @@ body.theme-dark .muted-section {
   background: rgba(255, 255, 255, 0.02);
 }
 
+body.theme-dark .route-badge {
+  background: rgba(255, 138, 87, 0.92);
+  color: #10161d;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
 body.theme-dark h1,
 body.theme-dark h2,
 body.theme-dark h3 {
@@ -1030,6 +1059,16 @@ body.theme-dark .eyebrow {
 
   .mechanic-card {
     transform: none;
+  }
+}
+
+@keyframes route-dash-flow {
+  from {
+    stroke-dashoffset: 40;
+  }
+
+  to {
+    stroke-dashoffset: 0;
   }
 }
 
