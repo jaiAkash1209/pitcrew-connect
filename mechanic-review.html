@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PitCrew Connect | Mechanic Review</title>
+  <meta
+    name="description"
+    content="Admin review page for mechanic verification in PitCrew Connect."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-dashboard-role="admin" data-dashboard-page="mechanic-review">
+  <header class="site-header">
+    <div class="container nav-shell">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">PC</span>
+        <span>PitCrew Connect</span>
+      </a>
+      <nav class="site-nav">
+        <a href="admin.html#overview">Overview</a>
+        <a href="admin.html#mechanics-board">Verification</a>
+        <a href="admin.html#users-board">Users</a>
+        <a href="admin.html#live-monitoring">Tracking</a>
+      </nav>
+      <a class="nav-cta logout-link" href="login.html">Logout</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="section dashboard-top">
+      <div class="container dashboard-header">
+        <div>
+          <p class="eyebrow">Mechanic Review</p>
+          <h1 class="dashboard-title" id="mechanicReviewTitle">Verification details</h1>
+          <p class="dashboard-subtitle">Review one mechanic record, documents, call notes, and approval status from a dedicated page.</p>
+        </div>
+        <div class="dashboard-actions">
+          <a class="button button-secondary" href="admin.html#mechanics-board">Back to admin</a>
+        </div>
+      </div>
+      <div class="container">
+        <p class="form-message admin-status-row" id="adminStatus" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="review-layout" id="mechanicReviewPanel">
+          <article class="empty-state">
+            <h3>Loading mechanic review</h3>
+            <p>The mechanic record will appear here once the page has loaded.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div>
+        <a class="brand footer-brand" href="index.html">
+          <span class="brand-mark">PC</span>
+          <span>PitCrew Connect</span>
+        </a>
+        <p>Admin review page for mechanic verification.</p>
+      </div>
+      <div class="footer-links">
+        <a href="admin.html#overview">Overview</a>
+        <a href="admin.html#mechanics-board">Verification</a>
+        <a href="admin.html#users-board">Users</a>
+        <a href="admin.html#live-monitoring">Tracking</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

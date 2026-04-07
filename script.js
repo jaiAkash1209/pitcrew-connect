@@ -97,10 +97,13 @@ const roleTrackingDescription = document.getElementById("roleTrackingDescription
 const roleTrackingCoordinates = document.getElementById("roleTrackingCoordinates");
 const forgotPasswordForm = document.getElementById("forgotPasswordForm");
 const forgotPasswordMessage = document.getElementById("forgotPasswordMessage");
+const mechanicReviewPanel = document.getElementById("mechanicReviewPanel");
+const mechanicReviewTitle = document.getElementById("mechanicReviewTitle");
 
 const AUTH_STORAGE_KEY = "pitcrew_auth";
 const THEME_STORAGE_KEY = "pitcrew_theme";
 const TRACKER_STORAGE_KEY = "pitcrew_tracker_id";
+const dashboardPage = document.body?.dataset?.dashboardPage || "";
 let trackingWatcherId = null;
 let trackingPollId = null;
 let trackingMap = null;
@@ -412,7 +415,20 @@ function buildMechanicAssignments(mechanics, bookings) {
     });
 }
 
+function getReviewMechanicId() {
+  const params = new URLSearchParams(window.location.search);
+  return String(params.get("id") || "").trim();
+}
+
 function getVerificationNotePayload(mechanicId) {
+  const reviewMechanicId = getReviewMechanicId();
+  if (mechanicReviewPanel && String(reviewMechanicId || "") === String(mechanicId || "")) {
+    return {
+      verificationNotes: document.querySelector("[data-review-page-notes]")?.value?.trim() || "",
+      verificationCallNotes: document.querySelector("[data-review-page-call-notes]")?.value?.trim() || ""
+    };
+  }
+
   const mechanicSelectorValue =
     typeof CSS !== "undefined" && typeof CSS.escape === "function"
       ? CSS.escape(String(mechanicId || ""))
@@ -905,6 +921,58 @@ function clearEditForm(form, messageElement, defaultMessage = "") {
   }
 }
 
+function renderPendingMechanicQueue(listElement, records) {
+  if (!listElement) {
+    return;
+  }
+
+  if (!records.length) {
+    listElement.innerHTML = `
+      <article class="empty-state">
+        <h3>No pending mechanics</h3>
+        <p class="admin-note">New mechanic registrations waiting for admin review will appear here.</p>
+      </article>
+    `;
+    return;
+  }
+
+  listElement.innerHTML = `
+    <table class="data-table compact-review-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Call</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${records
+          .slice()
+          .reverse()
+          .map((record) => {
+            return `
+              <tr>
+                <td>
+                  <strong>${escapeHtml(record.name || "Unnamed mechanic")}</strong>
+                  <div class="table-secondary">${escapeHtml(record.business || "No shop")}</div>
+                </td>
+                <td>${escapeHtml(record.phone || record.email || "-")}</td>
+                <td>${escapeHtml(record.verificationStatus || "Pending Verification")}</td>
+                <td>${escapeHtml(record.verificationCallStatus || "Call Pending")}</td>
+                <td>
+                  <a class="button button-secondary action-button" href="mechanic-review.html?id=${encodeURIComponent(record.id || "")}">Open details</a>
+                </td>
+              </tr>
+            `;
+          })
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
 function renderCards(listElement, records, type) {
   if (!listElement) {
     return;
@@ -1130,6 +1198,117 @@ function renderCards(listElement, records, type) {
     .join("");
 }
 
+function renderMechanicReviewDetail(mechanic, assignedBookings = []) {
+  if (!mechanicReviewPanel) {
+    return;
+  }
+
+  if (!mechanic) {
+    mechanicReviewPanel.innerHTML = `
+      <article class="empty-state">
+        <h3>Mechanic not found</h3>
+        <p>That review record is missing or no longer available.</p>
+      </article>
+    `;
+    return;
+  }
+
+  const aadhaarPreview = mechanic.aadhaarPhoto
+    ? `<img class="document-preview" src="${escapeHtml(mechanic.aadhaarPhoto)}" alt="Aadhaar card preview">`
+    : `<p class="admin-note">No Aadhaar photo uploaded.</p>`;
+  const shopPreview = mechanic.shopPhoto
+    ? `<img class="document-preview" src="${escapeHtml(mechanic.shopPhoto)}" alt="Shop photo preview">`
+    : `<p class="admin-note">No shop photo uploaded.</p>`;
+  const assignedMarkup = assignedBookings.length
+    ? assignedBookings
+        .map((booking) => {
+          return `
+            <div class="assignment-item">
+              <p><strong>${escapeHtml(booking.name || "Customer")}</strong> - ${escapeHtml(booking.service || "Service")}</p>
+              <p>${escapeHtml(booking.location || "-")} - ${escapeHtml(booking.status || "-")}</p>
+            </div>
+          `;
+        })
+        .join("")
+    : `<p class="admin-note">No assigned jobs right now.</p>`;
+
+  mechanicReviewPanel.innerHTML = `
+    <div class="review-main-card">
+      <div class="review-header-card">
+        <div>
+          <p class="eyebrow">Mechanic record</p>
+          <h2>${escapeHtml(mechanic.name || "Unnamed mechanic")}</h2>
+          <div class="admin-meta">
+            <span>${escapeHtml(mechanic.verificationStatus || "Pending Verification")}</span>
+            <span>${escapeHtml(mechanic.verificationCallStatus || "Call Pending")}</span>
+            <span>${escapeHtml(mechanic.service || "No service")}</span>
+          </div>
+        </div>
+        <div class="review-header-actions">
+          <a class="button button-secondary" href="admin.html#mechanics-board">Back to queue</a>
+          <button class="button button-secondary action-button" data-delete-resource="mechanics" data-delete-id="${escapeHtml(mechanic.id || "")}">Delete mechanic</button>
+        </div>
+      </div>
+
+      <div class="review-section-grid">
+        <article class="admin-card review-summary-card">
+          <h3>Basic details</h3>
+          <div class="review-summary-list">
+            <p><strong>Name:</strong> ${escapeHtml(mechanic.name || "-")}</p>
+            <p><strong>Email:</strong> ${escapeHtml(mechanic.email || "-")}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(mechanic.phone || "-")}</p>
+            <p><strong>Shop:</strong> ${escapeHtml(mechanic.business || "-")}</p>
+            <p><strong>Address:</strong> ${escapeHtml(mechanic.shopAddress || "-")}</p>
+            <p><strong>City / Area:</strong> ${escapeHtml(mechanic.location || "-")}</p>
+            <p><strong>Specialties:</strong> ${escapeHtml(mechanic.specialties || "-")}</p>
+          </div>
+        </article>
+
+        <article class="admin-card review-summary-card">
+          <h3>Assigned jobs</h3>
+          <div class="assignment-stack">
+            ${assignedMarkup}
+          </div>
+        </article>
+      </div>
+
+      <div class="review-section-grid">
+        <article class="admin-card review-doc-card">
+          <h3>Aadhaar card</h3>
+          ${aadhaarPreview}
+        </article>
+        <article class="admin-card review-doc-card">
+          <h3>Shop photo</h3>
+          ${shopPreview}
+        </article>
+      </div>
+
+      <article class="admin-card review-action-card">
+        <h3>Verification actions</h3>
+        <div class="nested-form">
+          <label class="full-width">
+            Review note
+            <textarea data-review-page-notes rows="4" placeholder="Add approval or document review note">${escapeHtml(mechanic.verificationNotes || "")}</textarea>
+          </label>
+          <label class="full-width">
+            Call note
+            <textarea data-review-page-call-notes rows="4" placeholder="Record the verification call outcome">${escapeHtml(mechanic.verificationCallNotes || "")}</textarea>
+          </label>
+        </div>
+        <div class="verification-actions">
+          <button class="button button-secondary action-button" data-call-status="${escapeHtml(mechanic.id || "")}" data-value="Call Scheduled">Schedule call</button>
+          <button class="button button-secondary action-button" data-call-status="${escapeHtml(mechanic.id || "")}" data-value="Verified By Call">Verified by call</button>
+          <button class="button button-secondary action-button" data-call-status="${escapeHtml(mechanic.id || "")}" data-value="Call Failed">Call failed</button>
+          <button class="button button-primary action-button" data-verify-status="${escapeHtml(mechanic.id || "")}" data-value="Approved">Approve</button>
+          <button class="button button-secondary action-button" data-verify-status="${escapeHtml(mechanic.id || "")}" data-value="Need More Info">Need info</button>
+          <button class="button button-secondary action-button" data-verify-status="${escapeHtml(mechanic.id || "")}" data-value="Rejected">Reject</button>
+        </div>
+        <p class="admin-note">Latest review activity:<br>${buildVerificationHistorySummary(mechanic)}</p>
+      </article>
+    </div>
+  `;
+}
+
 async function updateMechanicVerification(mechanicId, payload) {
   const response = await fetch(`/api/mechanics/${mechanicId}/verification`, {
     method: "PATCH",
@@ -1159,6 +1338,52 @@ async function acceptMechanicJob(bookingId, mechanicId) {
   }
 
   return data;
+}
+
+async function loadMechanicReviewPage() {
+  if (!mechanicReviewPanel || !adminStatus) {
+    return;
+  }
+
+  const mechanicId = getReviewMechanicId();
+  if (!mechanicId) {
+    adminStatus.textContent = "Mechanic review link is missing an id.";
+    renderMechanicReviewDetail(null);
+    return;
+  }
+
+  adminStatus.textContent = "Loading mechanic review...";
+
+  try {
+    const [mechanicsResponse, bookingsResponse] = await Promise.all([
+      fetch("/api/mechanics"),
+      fetch("/api/bookings")
+    ]);
+
+    if (!mechanicsResponse.ok || !bookingsResponse.ok) {
+      throw new Error("Review fetch failed");
+    }
+
+    const [mechanics, bookings] = await Promise.all([
+      mechanicsResponse.json(),
+      bookingsResponse.json()
+    ]);
+    const mechanicRecords = Array.isArray(mechanics) ? mechanics : [];
+    const bookingRecords = Array.isArray(bookings) ? bookings : [];
+    const mechanic = mechanicRecords.find((item) => String(item.id || "") === mechanicId);
+    const assignedBookings = bookingRecords.filter((booking) => String(booking.assignedMechanicId || "") === mechanicId);
+
+    renderMechanicReviewDetail(mechanic, assignedBookings);
+    if (mechanicReviewTitle) {
+      mechanicReviewTitle.textContent = mechanic?.name
+        ? `Verification details - ${mechanic.name}`
+        : "Verification details";
+    }
+    adminStatus.textContent = mechanic ? "Mechanic review loaded." : "Mechanic record not found.";
+  } catch (error) {
+    adminStatus.textContent = "Could not load mechanic review right now.";
+    renderMechanicReviewDetail(null);
+  }
 }
 
 async function getCurrentMechanicRecord() {
@@ -1453,7 +1678,7 @@ async function loadAdminData() {
     const mechanicAssignments = buildMechanicAssignments(mechanicRecords, bookingRecords);
 
     renderAdminTables(bookingRecords, userRecords, mechanicRecords);
-    renderCards(pendingMechanicsList, pendingMechanics, "mechanicVerification");
+    renderPendingMechanicQueue(pendingMechanicsList, pendingMechanics);
     renderCards(mechanicReviewHistoryList, reviewedMechanics, "mechanicReviewHistory");
     renderCards(mechanicAssignmentsList, mechanicAssignments, "mechanicAssignments");
     renderCards(adminTrackingList, trackingRecords, "tracking");
@@ -1950,8 +2175,12 @@ if (dashboardRole) {
   requireDashboardAccess(dashboardRole);
 }
 
-if (dashboardRole === "admin") {
+if (dashboardRole === "admin" && (pendingMechanicsList || bookingsTableBody || usersTableBody || mechanicTableBody)) {
   loadAdminData();
+}
+
+if (dashboardPage === "mechanic-review") {
+  loadMechanicReviewPage();
 }
 
 if (dashboardRole === "mechanic" && mechanicJobsList) {
@@ -2025,7 +2254,11 @@ document.addEventListener("click", async (event) => {
         verificationCallNotes: notePayload.verificationCallNotes
       });
       adminStatus.textContent = `Mechanic marked as ${verificationStatus}.`;
-      loadAdminData();
+      if (dashboardPage === "mechanic-review") {
+        loadMechanicReviewPage();
+      } else {
+        loadAdminData();
+      }
     } catch (error) {
       adminStatus.textContent = "Could not update mechanic verification.";
     }
@@ -2046,7 +2279,11 @@ document.addEventListener("click", async (event) => {
         verificationCallNotes: notePayload.verificationCallNotes || `Admin call state: ${verificationCallStatus}`
       });
       adminStatus.textContent = `Call status updated to ${verificationCallStatus}.`;
-      loadAdminData();
+      if (dashboardPage === "mechanic-review") {
+        loadMechanicReviewPage();
+      } else {
+        loadAdminData();
+      }
     } catch (error) {
       adminStatus.textContent = "Could not update call verification.";
     }
@@ -2087,7 +2324,13 @@ document.addEventListener("click", async (event) => {
     try {
       await deleteAdminRecord(resource, recordId);
       adminStatus.textContent = `${label.charAt(0).toUpperCase()}${label.slice(1)} deleted by admin.`;
-      loadAdminData();
+      if (dashboardPage === "mechanic-review" && resource === "mechanics") {
+        window.location.replace("admin.html#mechanics-board");
+      } else if (dashboardPage === "mechanic-review") {
+        loadMechanicReviewPage();
+      } else {
+        loadAdminData();
+      }
     } catch (error) {
       adminStatus.textContent = error.message || `Could not delete ${label}.`;
     }
