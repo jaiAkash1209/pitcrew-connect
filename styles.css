@@ -867,6 +867,17 @@ textarea:focus {
   margin-bottom: 1.5rem;
 }
 
+.admin-ops-stack {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-table-block {
+  display: grid;
+  gap: 1rem;
+}
+
 .compact-review-shell {
   padding: 0.35rem;
 }
@@ -877,7 +888,6 @@ textarea:focus {
 
 .compact-review-table {
   min-width: 100%;
-  table-layout: fixed;
 }
 
 .table-secondary {
