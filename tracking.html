@@ -27,12 +27,12 @@
   </header>
   <main>
     <section class="section dashboard-top" id="overview">
-      <div class="container dashboard-header">
-        <div>
-          <p class="eyebrow">Live Tracking</p>
-          <h1 class="dashboard-title">GPS location sharing</h1>
-          <p class="dashboard-subtitle" id="dashboardWelcome">Share location and monitor live updates.</p>
-        </div>
+        <div class="container dashboard-header">
+          <div>
+            <p class="eyebrow">Live Tracking</p>
+            <h1 class="dashboard-title">GPS location sharing</h1>
+            <p class="dashboard-subtitle" id="dashboardWelcome"></p>
+          </div>
         <div class="dashboard-actions">
           <button class="button button-primary" id="startTrackingButton" type="button">Start tracking</button>
           <button class="button button-secondary" id="stopTrackingButton" type="button">Stop tracking</button>
@@ -48,7 +48,6 @@
         <div class="request-copy">
           <p class="eyebrow">Share location</p>
           <h2>Your current GPS details</h2>
-          <p>Browser location is sent to the platform and refreshed live while tracking is on.</p>
         </div>
         <div class="panel-card">
           <div class="admin-meta">
@@ -68,7 +67,6 @@
         <div class="section-heading left">
           <p class="eyebrow">Map</p>
           <h2>Live map view</h2>
-          <p>Track active users and mechanics on a single map as their location updates arrive.</p>
         </div>
         <div class="tracking-map-shell">
           <div id="trackingMap" class="tracking-map" aria-label="Live GPS tracking map"></div>
@@ -81,7 +79,6 @@
         <div class="section-heading left">
           <p class="eyebrow">Matching</p>
           <h2>Nearest mechanic suggestions</h2>
-          <p>Users are paired with the closest tracked mechanic available in the live feed.</p>
         </div>
         <div class="admin-grid" id="trackingMatchesList">
           <article class="empty-state">
@@ -97,7 +94,6 @@
         <div class="section-heading left">
           <p class="eyebrow">Live feed</p>
           <h2>Latest tracker positions</h2>
-          <p>This feed refreshes from the tracking database.</p>
         </div>
         <div class="admin-grid" id="trackingList">
           <article class="empty-state">

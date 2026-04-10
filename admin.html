@@ -38,12 +38,12 @@
 
   <main>
     <section class="section dashboard-top" id="overview">
-      <div class="container dashboard-header">
-        <div>
-          <p class="eyebrow">Admin Dashboard</p>
-          <h1 class="dashboard-title">Operations Control</h1>
-          <p class="dashboard-subtitle" id="dashboardWelcome">Monitor records, tracking, and role activity under one control model.</p>
-        </div>
+        <div class="container dashboard-header">
+          <div>
+            <p class="eyebrow">Admin Dashboard</p>
+            <h1 class="dashboard-title">Operations Control</h1>
+            <p class="dashboard-subtitle" id="dashboardWelcome"></p>
+          </div>
         <div class="dashboard-actions">
           <button class="button button-primary" id="refreshAdminButton" type="button">Refresh data</button>
           <a class="button button-secondary" href="#settings">Settings</a>
@@ -59,7 +59,6 @@
         <div class="section-heading left">
           <p class="eyebrow">Rule 01: Intake Review</p>
           <h2>Customer request records</h2>
-          <p>Review structured request intake before assignment and follow-up.</p>
         </div>
         <div class="table-toolbar">
           <label>
@@ -133,7 +132,6 @@
         <div class="section-heading left">
           <p class="eyebrow">Rule 02: Partner Review</p>
           <h2>Mechanic verification control</h2>
-          <p>Review pending mechanics, track admin call outcomes, and confirm which approved mechanics are already carrying jobs.</p>
         </div>
         <div class="admin-ops-stack">
           <div class="admin-table-block">
@@ -142,7 +140,6 @@
                 <p class="section-kicker">Incoming Requests</p>
                 <h3>Pending verification queue</h3>
               </div>
-              <p>Open each request in a dedicated review page and keep this queue clean.</p>
             </div>
             <div class="table-shell compact-review-shell">
               <div class="compact-review-list" id="pendingMechanicsList">
@@ -159,7 +156,6 @@
                 <p class="section-kicker">Audit Trail</p>
                 <h3>Review history</h3>
               </div>
-              <p>Track approval outcomes, call progress, and the latest review note in one place.</p>
             </div>
             <div class="table-shell compact-review-shell">
               <div class="compact-review-list" id="mechanicReviewHistoryList">
@@ -174,7 +170,6 @@
         <div class="section-heading left admin-subheading">
           <p class="eyebrow">Rule 02A: Assigned Work</p>
           <h3>Approved mechanics with assigned jobs</h3>
-          <p>Track who is approved, which customer job is assigned, and whether the mechanic is currently available.</p>
         </div>
         <div class="admin-grid" id="mechanicAssignmentsList">
           <article class="empty-state">
@@ -185,7 +180,6 @@
         <div class="section-heading left admin-subheading">
           <p class="eyebrow">Rule 02B: Mechanic Database</p>
           <h3>Mechanic account records</h3>
-          <p>View mechanic records in a sheet layout and update account details from one form.</p>
         </div>
         <div class="table-toolbar">
           <label>
