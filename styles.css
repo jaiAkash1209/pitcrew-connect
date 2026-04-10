@@ -326,6 +326,7 @@ label,
   display: flex;
   flex-wrap: wrap;
   gap: 0.85rem;
+  justify-content: center;
 }
 
 .auth-switch {
@@ -620,6 +621,15 @@ label,
   text-align: left;
   padding: 1.5rem;
   border-radius: 1.4rem;
+}
+
+.centered-role-grid .role-card {
+  text-align: center;
+}
+
+.centered-role-grid .card-index {
+  display: inline-flex;
+  margin: 0 auto 1rem;
 }
 
 .role-card.active {
