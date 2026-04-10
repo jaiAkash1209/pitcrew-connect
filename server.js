@@ -451,11 +451,12 @@ function buildPagedResult(records, options = {}) {
 function applyDateRangeFilter(records, getValue, fromDate = "", toDate = "") {
   const fromTime = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : 0;
   const toTime = toDate ? new Date(`${toDate}T23:59:59`).getTime() : 0;
+  const hasDateFilter = Boolean(fromTime || toTime);
 
   return records.filter((record) => {
     const recordTime = new Date(getValue(record) || "").getTime();
     if (Number.isNaN(recordTime)) {
-      return false;
+      return !hasDateFilter;
     }
     if (fromTime && recordTime < fromTime) {
       return false;
@@ -2584,8 +2585,8 @@ app.get("/api/admin/dashboard", async (req, res) => {
       getBookings(""),
       getMechanics(""),
       getUsers(),
-      getTrackingRecords(),
-      loadTrackingMatches()
+      getTracking(),
+      getTrackingMatches()
     ]);
 
     const bookingSearch = String(req.query?.bookingSearch || "").trim().toLowerCase();
