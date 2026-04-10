@@ -482,8 +482,22 @@ label,
   margin-bottom: 2.5rem;
 }
 
+.section-heading h1,
+.section-heading h2,
+.section-heading h3 {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .section-heading.left {
   text-align: left;
+}
+
+.section-heading.left h1,
+.section-heading.left h2,
+.section-heading.left h3 {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .service-grid,
