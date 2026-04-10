@@ -348,6 +348,23 @@ function mapMechanicRow(row) {
   };
 }
 
+function hasStoredDocument(value) {
+  const normalized = String(value || "").trim();
+  return normalized.startsWith("data:") || normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("/uploads/");
+}
+
+function sanitizeMechanicRecord(record) {
+  const mechanicId = String(record?.id || "").trim();
+  const aadhaarValue = String(record?.aadhaarPhoto || "").trim();
+  const shopValue = String(record?.shopPhoto || "").trim();
+
+  return {
+    ...record,
+    aadhaarPhoto: hasStoredDocument(aadhaarValue) ? `/api/mechanics/${encodeURIComponent(mechanicId)}/documents/aadhaar` : "",
+    shopPhoto: hasStoredDocument(shopValue) ? `/api/mechanics/${encodeURIComponent(mechanicId)}/documents/shop` : ""
+  };
+}
+
 function parseJsonArray(value) {
   if (Array.isArray(value)) {
     return value;
@@ -400,6 +417,69 @@ function mapBookingRow(row) {
     acceptedAt: row.accepted_at || "",
     completedAt: row.completed_at || ""
   };
+}
+
+function parseDocumentDataUrl(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    contentType: match[1],
+    buffer: Buffer.from(match[2], "base64")
+  };
+}
+
+function buildPagedResult(records, options = {}) {
+  const safeRecords = Array.isArray(records) ? records : [];
+  const pageSize = Math.min(Math.max(Number(options.pageSize) || 8, 1), 50);
+  const total = safeRecords.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(Number(options.page) || 1, 1), totalPages);
+  const startIndex = (page - 1) * pageSize;
+  return {
+    records: safeRecords.slice(startIndex, startIndex + pageSize),
+    total,
+    page,
+    pageSize,
+    totalPages
+  };
+}
+
+function applyDateRangeFilter(records, getValue, fromDate = "", toDate = "") {
+  const fromTime = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : 0;
+  const toTime = toDate ? new Date(`${toDate}T23:59:59`).getTime() : 0;
+
+  return records.filter((record) => {
+    const recordTime = new Date(getValue(record) || "").getTime();
+    if (Number.isNaN(recordTime)) {
+      return false;
+    }
+    if (fromTime && recordTime < fromTime) {
+      return false;
+    }
+    if (toTime && recordTime > toTime) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function sortRecordsByField(records, sortValue = "createdAt-desc") {
+  const [field, direction] = String(sortValue || "createdAt-desc").split("-");
+  const multiplier = direction === "asc" ? 1 : -1;
+  return records.slice().sort((left, right) => {
+    const leftValue = left?.[field];
+    const rightValue = right?.[field];
+
+    if (field === "createdAt") {
+      return ((new Date(leftValue || 0).getTime() || 0) - (new Date(rightValue || 0).getTime() || 0)) * multiplier;
+    }
+
+    return String(leftValue || "").toLowerCase().localeCompare(String(rightValue || "").toLowerCase()) * multiplier;
+  });
 }
 
 function mapTrackingRow(row) {
@@ -614,6 +694,24 @@ async function getUsers() {
     email: row.email || "",
     role: row.role || ""
   }));
+}
+
+async function getRawMechanicById(mechanicId) {
+  const id = String(mechanicId || "").trim();
+  if (!id) {
+    return null;
+  }
+
+  if (!useDatabase) {
+    return readRecords(mechanicsPath).find((record) => String(record.id || "") === id) || null;
+  }
+
+  const result = await pool.query("SELECT * FROM mechanics WHERE id = $1 LIMIT 1", [id]);
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  return mapMechanicRow(result.rows[0]);
 }
 
 async function findUserByCredentials(email, password, role) {
@@ -2160,8 +2258,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "10mb" }));
-app.use(express.static(__dirname));
+app.use(express.json({ limit: "4mb" }));
+app.use(express.static(__dirname, {
+  maxAge: isProduction ? "1d" : 0
+}));
 
 app.post("/api/login", async (req, res) => {
   const email = String(req.body?.email || "").trim().toLowerCase();
@@ -2353,6 +2453,47 @@ app.post("/api/tracking/update", async (req, res) => {
   }
 });
 
+app.get("/api/mechanics/:id/documents/:type", async (req, res) => {
+  const mechanicId = String(req.params?.id || "");
+  const documentType = String(req.params?.type || "").trim().toLowerCase();
+  if (!["aadhaar", "shop"].includes(documentType)) {
+    res.status(404).end();
+    return;
+  }
+
+  try {
+    const mechanic = await getRawMechanicById(mechanicId);
+    if (!mechanic) {
+      res.status(404).end();
+      return;
+    }
+
+    const sourceValue = documentType === "aadhaar" ? mechanic.aadhaarPhoto : mechanic.shopPhoto;
+    const normalized = String(sourceValue || "").trim();
+    if (!normalized) {
+      res.status(404).end();
+      return;
+    }
+
+    if (normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("/uploads/")) {
+      res.redirect(normalized);
+      return;
+    }
+
+    const parsed = parseDocumentDataUrl(normalized);
+    if (!parsed) {
+      res.status(404).end();
+      return;
+    }
+
+    res.setHeader("Content-Type", parsed.contentType || "application/octet-stream");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.end(parsed.buffer);
+  } catch (error) {
+    res.status(500).end();
+  }
+});
+
 app.get("/api/bookings", async (req, res) => {
   try {
     const statusFilter = String(req.query?.status || "").trim().toLowerCase();
@@ -2391,7 +2532,8 @@ app.patch("/api/bookings/:id/accept", async (req, res) => {
 app.get("/api/mechanics", async (req, res) => {
   try {
     const statusFilter = String(req.query?.verificationStatus || "").trim().toLowerCase();
-    res.json(await getMechanics(statusFilter));
+    const records = await getMechanics(statusFilter);
+    res.json(records.map(sanitizeMechanicRecord));
   } catch (error) {
     res.status(500).json([]);
   }
@@ -2400,9 +2542,155 @@ app.get("/api/mechanics", async (req, res) => {
 app.post("/api/mechanics", async (req, res) => {
   try {
     const mechanic = await upsertMechanic(req.body || {});
-    res.status(201).json({ ok: true, mechanic });
+    res.status(201).json({ ok: true, mechanic: sanitizeMechanicRecord(mechanic) });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Mechanic save failed" });
+  }
+});
+
+app.get("/api/admin/dashboard", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
+  try {
+    const bookingPage = Number(req.query?.bookingPage || 1);
+    const mechanicPage = Number(req.query?.mechanicPage || 1);
+    const userPage = Number(req.query?.userPage || 1);
+    const pageSize = Number(req.query?.pageSize || 8);
+
+    const [
+      bookingRecordsRaw,
+      mechanicRecordsRaw,
+      userRecords,
+      trackingRecords,
+      matches
+    ] = await Promise.all([
+      getBookings(""),
+      getMechanics(""),
+      getUsers(),
+      getTrackingRecords(),
+      loadTrackingMatches()
+    ]);
+
+    const bookingSearch = String(req.query?.bookingSearch || "").trim().toLowerCase();
+    const bookingStatus = String(req.query?.bookingStatus || "").trim();
+    const bookingSort = String(req.query?.bookingSort || "createdAt-desc").trim();
+    const bookingFrom = String(req.query?.bookingFrom || "").trim();
+    const bookingTo = String(req.query?.bookingTo || "").trim();
+
+    const mechanicSearch = String(req.query?.mechanicSearch || "").trim().toLowerCase();
+    const mechanicStatus = String(req.query?.mechanicStatus || "").trim();
+    const mechanicSort = String(req.query?.mechanicSort || "createdAt-desc").trim();
+    const mechanicFrom = String(req.query?.mechanicFrom || "").trim();
+    const mechanicTo = String(req.query?.mechanicTo || "").trim();
+
+    const userSearch = String(req.query?.userSearch || "").trim().toLowerCase();
+    const userRole = String(req.query?.userRole || "").trim().toLowerCase();
+    const userSort = String(req.query?.userSort || "createdAt-desc").trim();
+    const userFrom = String(req.query?.userFrom || "").trim();
+    const userTo = String(req.query?.userTo || "").trim();
+
+    const bookingRecords = sortRecordsByField(
+      applyDateRangeFilter(
+        bookingRecordsRaw.filter((booking) => {
+          const matchesSearch = bookingSearch
+            ? [
+                booking.name,
+                booking.service,
+                booking.location,
+                booking.status,
+                booking.assignedMechanicName
+              ].some((value) => String(value || "").toLowerCase().includes(bookingSearch))
+            : true;
+          const matchesStatus = bookingStatus ? String(booking.status || "") === bookingStatus : true;
+          return matchesSearch && matchesStatus;
+        }),
+        (booking) => booking.createdAt,
+        bookingFrom,
+        bookingTo
+      ),
+      bookingSort
+    );
+
+    const mechanicRecords = sortRecordsByField(
+      applyDateRangeFilter(
+        mechanicRecordsRaw.filter((mechanic) => {
+          const matchesSearch = mechanicSearch
+            ? [
+                mechanic.name,
+                mechanic.email,
+                mechanic.business,
+                mechanic.service,
+                mechanic.phone
+              ].some((value) => String(value || "").toLowerCase().includes(mechanicSearch))
+            : true;
+          const matchesStatus = mechanicStatus ? String(mechanic.verificationStatus || "") === mechanicStatus : true;
+          return matchesSearch && matchesStatus;
+        }),
+        (mechanic) => mechanic.createdAt,
+        mechanicFrom,
+        mechanicTo
+      ),
+      mechanicSort
+    );
+
+    const userFiltered = sortRecordsByField(
+      applyDateRangeFilter(
+        userRecords.filter((user) => {
+          const matchesSearch = userSearch
+            ? [user.name, user.email].some((value) => String(value || "").toLowerCase().includes(userSearch))
+            : true;
+          const matchesRole = userRole ? String(user.role || "").toLowerCase() === userRole : true;
+          return matchesSearch && matchesRole;
+        }),
+        (user) => user.createdAt,
+        userFrom,
+        userTo
+      ),
+      userSort
+    );
+
+    const pendingMechanics = mechanicRecordsRaw.filter((mechanic) => {
+      return String(mechanic.verificationStatus || "") !== "Approved" && String(mechanic.verificationStatus || "") !== "Rejected";
+    }).map(sanitizeMechanicRecord);
+    const reviewedMechanics = mechanicRecordsRaw.filter((mechanic) => {
+      return Boolean(mechanic.reviewedAt) || (Array.isArray(mechanic.verificationHistory) && mechanic.verificationHistory.length);
+    }).map(sanitizeMechanicRecord);
+    const mechanicAssignments = buildMechanicAssignments(mechanicRecordsRaw, bookingRecordsRaw).map(sanitizeMechanicRecord);
+
+    const mechanicAssignmentCounts = bookingRecordsRaw.reduce((counts, booking) => {
+      const key = String(booking.assignedMechanicId || "").trim();
+      if (!key) {
+        return counts;
+      }
+      counts[key] = (counts[key] || 0) + 1;
+      return counts;
+    }, {});
+
+    const pagedMechanics = buildPagedResult(mechanicRecords.map((mechanic) => {
+      const sanitized = sanitizeMechanicRecord(mechanic);
+      return {
+        ...sanitized,
+        assignedJobsCount: mechanicAssignmentCounts[String(mechanic.id || "").trim()] || 0
+      };
+    }), { page: mechanicPage, pageSize });
+
+    res.json({
+      ok: true,
+      bookings: buildPagedResult(bookingRecords, { page: bookingPage, pageSize }),
+      mechanics: pagedMechanics,
+      users: buildPagedResult(userFiltered, { page: userPage, pageSize }),
+      summaries: {
+        pendingMechanics,
+        reviewedMechanics,
+        mechanicAssignments,
+        trackingRecords,
+        matches
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "Dashboard fetch failed" });
   }
 });
 
@@ -2440,7 +2728,7 @@ app.patch("/api/mechanics/:id", async (req, res) => {
       return;
     }
 
-    res.json({ ok: true, mechanic });
+    res.json({ ok: true, mechanic: sanitizeMechanicRecord(mechanic) });
   } catch (error) {
     const message = error.message || "Mechanic update failed";
     const statusCode = message.includes("required") || message.includes("Another") ? 400 : 500;
@@ -2461,7 +2749,7 @@ app.patch("/api/mechanics/:id/verification", async (req, res) => {
       return;
     }
 
-    res.json({ ok: true, mechanic });
+    res.json({ ok: true, mechanic: sanitizeMechanicRecord(mechanic) });
   } catch (error) {
     const message = error.message || "Verification update failed";
     const statusCode = message.includes("Invalid") ? 400 : 500;

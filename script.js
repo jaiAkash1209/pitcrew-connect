@@ -115,7 +115,11 @@ let adminDataset = {
   bookings: [],
   mechanics: [],
   users: [],
-  trackers: []
+  trackers: [],
+  pendingMechanics: [],
+  reviewedMechanics: [],
+  mechanicAssignments: [],
+  matches: []
 };
 const ADMIN_PAGE_SIZE = 8;
 const adminTableState = {
@@ -284,9 +288,43 @@ function attachSettingsForm(form, messageElement) {
 }
 
 function readFileAsDataUrl(file) {
+  if (!(file instanceof File)) {
+    return Promise.resolve("");
+  }
+
+  if (!String(file.type || "").startsWith("image/")) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("File read failed"));
+      reader.readAsDataURL(file);
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const maxDimension = 1280;
+        const scale = Math.min(1, maxDimension / Math.max(image.width || 1, image.height || 1));
+        const width = Math.max(1, Math.round((image.width || 1) * scale));
+        const height = Math.max(1, Math.round((image.height || 1) * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          resolve(String(reader.result || ""));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+      image.onerror = () => resolve(String(reader.result || ""));
+      image.src = String(reader.result || "");
+    };
     reader.onerror = () => reject(new Error("File read failed"));
     reader.readAsDataURL(file);
   });
@@ -816,17 +854,13 @@ function exportMechanicsCsv() {
   ]);
 }
 
-function renderAdminTables(bookings, users, mechanics) {
-  const filteredBookings = sortRecords(getFilteredBookings(bookings), bookingSortSelect?.value);
-  const filteredUsers = sortRecords(getFilteredUsers(users), userSortSelect?.value);
-  const filteredMechanics = sortRecords(getFilteredMechanics(mechanics), mechanicSortSelect?.value);
-  const pagedBookings = paginateRecords(filteredBookings, "bookings");
-  const pagedUsers = paginateRecords(filteredUsers, "users");
-  const pagedMechanics = paginateRecords(filteredMechanics, "mechanics");
-
+function renderAdminTables(bookingsPage, usersPage, mechanicsPage) {
+  const bookingRecords = Array.isArray(bookingsPage?.records) ? bookingsPage.records : [];
+  const userRecords = Array.isArray(usersPage?.records) ? usersPage.records : [];
+  const mechanicRecords = Array.isArray(mechanicsPage?.records) ? mechanicsPage.records : [];
   renderTableBody(
     bookingsTableBody,
-    pagedBookings.records.map((booking) => `
+    bookingRecords.map((booking) => `
       <tr>
         <td>${escapeHtml(booking.name || "-")}</td>
         <td>${escapeHtml(booking.service || "-")}</td>
@@ -843,12 +877,12 @@ function renderAdminTables(bookings, users, mechanics) {
     "Bookings will appear here after users submit service requests.",
     8
   );
-  updatePageInfo(bookingPageInfo, pagedBookings.currentPage, pagedBookings.totalPages);
-  setPagerDisabled(bookingPrevPageButton, bookingNextPageButton, pagedBookings.currentPage, pagedBookings.totalPages);
+  updatePageInfo(bookingPageInfo, Number(bookingsPage?.page || 1), Number(bookingsPage?.totalPages || 1));
+  setPagerDisabled(bookingPrevPageButton, bookingNextPageButton, Number(bookingsPage?.page || 1), Number(bookingsPage?.totalPages || 1));
 
   renderTableBody(
     usersTableBody,
-    pagedUsers.records.map((user) => `
+    userRecords.map((user) => `
       <tr>
         <td>${escapeHtml(user.name || "-")}</td>
         <td>${escapeHtml(user.email || "-")}</td>
@@ -863,16 +897,12 @@ function renderAdminTables(bookings, users, mechanics) {
     "User accounts will appear here after registration.",
     5
   );
-  updatePageInfo(userPageInfo, pagedUsers.currentPage, pagedUsers.totalPages);
-  setPagerDisabled(userPrevPageButton, userNextPageButton, pagedUsers.currentPage, pagedUsers.totalPages);
+  updatePageInfo(userPageInfo, Number(usersPage?.page || 1), Number(usersPage?.totalPages || 1));
+  setPagerDisabled(userPrevPageButton, userNextPageButton, Number(usersPage?.page || 1), Number(usersPage?.totalPages || 1));
 
   renderTableBody(
     mechanicTableBody,
-    pagedMechanics.records.map((mechanic) => {
-      const assignedCount = adminDataset.bookings.filter((booking) => {
-        return String(booking.assignedMechanicId || "") === String(mechanic.id || "");
-      }).length;
-
+    mechanicRecords.map((mechanic) => {
       return `
         <tr>
           <td>${escapeHtml(mechanic.name || "-")}</td>
@@ -881,7 +911,7 @@ function renderAdminTables(bookings, users, mechanics) {
           <td>${escapeHtml(mechanic.business || "-")}</td>
           <td>${escapeHtml(mechanic.verificationStatus || "-")}</td>
           <td>${escapeHtml(mechanic.verificationCallStatus || "-")}</td>
-          <td>${escapeHtml(String(assignedCount))}</td>
+          <td>${escapeHtml(String(mechanic.assignedJobsCount || 0))}</td>
           <td class="table-actions">
             <button class="button button-secondary action-button" data-edit-mechanic="${escapeHtml(mechanic.id || "")}">Edit</button>
             <button class="button button-secondary action-button" data-delete-resource="mechanics" data-delete-id="${escapeHtml(mechanic.id || "")}">Delete</button>
@@ -892,8 +922,8 @@ function renderAdminTables(bookings, users, mechanics) {
     "Mechanic accounts will appear here after registration.",
     8
   );
-  updatePageInfo(mechanicPageInfo, pagedMechanics.currentPage, pagedMechanics.totalPages);
-  setPagerDisabled(mechanicPrevPageButton, mechanicNextPageButton, pagedMechanics.currentPage, pagedMechanics.totalPages);
+  updatePageInfo(mechanicPageInfo, Number(mechanicsPage?.page || 1), Number(mechanicsPage?.totalPages || 1));
+  setPagerDisabled(mechanicPrevPageButton, mechanicNextPageButton, Number(mechanicsPage?.page || 1), Number(mechanicsPage?.totalPages || 1));
 }
 
 function fillUserEditForm(user) {
@@ -1723,52 +1753,57 @@ async function loadAdminData() {
   adminStatus.textContent = "Refreshing dashboard...";
 
   try {
-    const [bookingsResponse, mechanicsResponse, usersResponse, trackingResponse, matches] = await Promise.all([
-      fetch("/api/bookings"),
-      fetch("/api/mechanics"),
-      fetch("/api/users", {
-        headers: getAdminHeaders()
-      }),
-      fetch("/api/tracking"),
-      loadTrackingMatches()
-    ]);
+    const params = new URLSearchParams({
+      bookingPage: String(adminTableState.bookings.page || 1),
+      mechanicPage: String(adminTableState.mechanics.page || 1),
+      userPage: String(adminTableState.users.page || 1),
+      pageSize: String(ADMIN_PAGE_SIZE),
+      bookingSearch: String(bookingSearchInput?.value || ""),
+      bookingStatus: String(bookingStatusFilter?.value || ""),
+      bookingSort: String(bookingSortSelect?.value || "createdAt-desc"),
+      bookingFrom: String(bookingDateFrom?.value || ""),
+      bookingTo: String(bookingDateTo?.value || ""),
+      mechanicSearch: String(mechanicSearchInput?.value || ""),
+      mechanicStatus: String(mechanicStatusFilter?.value || ""),
+      mechanicSort: String(mechanicSortSelect?.value || "createdAt-desc"),
+      mechanicFrom: String(mechanicDateFrom?.value || ""),
+      mechanicTo: String(mechanicDateTo?.value || ""),
+      userSearch: String(userSearchInput?.value || ""),
+      userRole: String(userRoleFilter?.value || ""),
+      userSort: String(userSortSelect?.value || "createdAt-desc"),
+      userFrom: String(userDateFrom?.value || ""),
+      userTo: String(userDateTo?.value || "")
+    });
 
-    if (!bookingsResponse.ok || !mechanicsResponse.ok || !usersResponse.ok || !trackingResponse.ok) {
-      throw new Error("Dashboard fetch failed");
+    const response = await fetch(`/api/admin/dashboard?${params.toString()}`, {
+      headers: getAdminHeaders()
+    });
+    const data = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Dashboard fetch failed");
     }
 
-    const [bookings, mechanics, users, trackers] = await Promise.all([
-      bookingsResponse.json(),
-      mechanicsResponse.json(),
-      usersResponse.json(),
-      trackingResponse.json()
-    ]);
-
-    const bookingRecords = Array.isArray(bookings) ? bookings : [];
-    const mechanicRecords = Array.isArray(mechanics) ? mechanics : [];
-    const userRecords = Array.isArray(users) ? users : [];
-    const trackingRecords = Array.isArray(trackers) ? trackers : [];
     adminDataset = {
-      bookings: bookingRecords,
-      mechanics: mechanicRecords,
-      users: userRecords,
-      trackers: trackingRecords
+      bookings: data.bookings?.records || [],
+      mechanics: data.mechanics?.records || [],
+      users: data.users?.records || [],
+      trackers: data.summaries?.trackingRecords || [],
+      pendingMechanics: data.summaries?.pendingMechanics || [],
+      reviewedMechanics: data.summaries?.reviewedMechanics || [],
+      mechanicAssignments: data.summaries?.mechanicAssignments || [],
+      matches: data.summaries?.matches || []
     };
-    const pendingMechanics = mechanicRecords.filter((mechanic) => {
-      return String(mechanic.verificationStatus || "") !== "Approved" && String(mechanic.verificationStatus || "") !== "Rejected";
-    });
-    const reviewedMechanics = mechanicRecords.filter((mechanic) => {
-      return Boolean(mechanic.reviewedAt) || (Array.isArray(mechanic.verificationHistory) && mechanic.verificationHistory.length);
-    });
-    const mechanicAssignments = buildMechanicAssignments(mechanicRecords, bookingRecords);
+    adminTableState.bookings.page = Number(data.bookings?.page || 1);
+    adminTableState.mechanics.page = Number(data.mechanics?.page || 1);
+    adminTableState.users.page = Number(data.users?.page || 1);
 
-    renderAdminTables(bookingRecords, userRecords, mechanicRecords);
-    renderPendingMechanicQueue(pendingMechanicsList, pendingMechanics);
-    renderMechanicReviewHistoryTable(mechanicReviewHistoryList, reviewedMechanics);
-    renderCards(mechanicAssignmentsList, mechanicAssignments, "mechanicAssignments");
-    renderCards(adminTrackingList, trackingRecords, "tracking");
-    renderCards(adminMatchesList, matches, "matches");
-    updateTrackingMap(trackingRecords, matches);
+    renderAdminTables(data.bookings, data.users, data.mechanics);
+    renderPendingMechanicQueue(pendingMechanicsList, adminDataset.pendingMechanics);
+    renderMechanicReviewHistoryTable(mechanicReviewHistoryList, adminDataset.reviewedMechanics);
+    renderCards(mechanicAssignmentsList, adminDataset.mechanicAssignments, "mechanicAssignments");
+    renderCards(adminTrackingList, adminDataset.trackers, "tracking");
+    renderCards(adminMatchesList, adminDataset.matches, "matches");
+    updateTrackingMap(adminDataset.trackers, adminDataset.matches);
     adminStatus.textContent = "Dashboard updated.";
   } catch (error) {
     handleProtectedRequestFailure(error);
@@ -2191,7 +2226,7 @@ if (refreshMechanicJobsButton) {
     adminTableState.bookings.page = 1;
     adminTableState.mechanics.page = 1;
     adminTableState.users.page = 1;
-    renderAdminTables(adminDataset.bookings, adminDataset.users, adminDataset.mechanics);
+    loadAdminData();
   });
 });
 
@@ -2221,7 +2256,7 @@ if (exportMechanicsButton) {
 
   button.addEventListener("click", () => {
     adminTableState[key].page = Math.max(1, adminTableState[key].page + delta);
-    renderAdminTables(adminDataset.bookings, adminDataset.users, adminDataset.mechanics);
+    loadAdminData();
   });
 });
 
