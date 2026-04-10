@@ -730,6 +730,26 @@ async function getRawMechanicById(mechanicId) {
   return mapMechanicRow(result.rows[0]);
 }
 
+async function getMechanicByEmail(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  if (!useDatabase) {
+    return readRecords(mechanicsPath).find((record) => {
+      return String(record.email || "").trim().toLowerCase() === normalizedEmail;
+    }) || null;
+  }
+
+  const result = await pool.query("SELECT * FROM mechanics WHERE email = $1 LIMIT 1", [normalizedEmail]);
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  return mapMechanicRow(result.rows[0]);
+}
+
 async function findUserByCredentials(email, password, role) {
   if (!useDatabase) {
     const users = readRecords(usersPath);
@@ -752,6 +772,15 @@ async function findUserByCredentials(email, password, role) {
 
     if (!isValid) {
       return null;
+    }
+
+    if (role === "mechanic") {
+      const mechanic = await getMechanicByEmail(email);
+      if (!mechanic || String(mechanic.verificationStatus || "") !== "Approved") {
+        const error = new Error("Mechanic account is waiting for admin approval");
+        error.code = "MECHANIC_NOT_APPROVED";
+        throw error;
+      }
     }
 
     if (!isPasswordHash(storedPassword)) {
@@ -783,6 +812,15 @@ async function findUserByCredentials(email, password, role) {
 
   if (!isValid) {
     return null;
+  }
+
+  if (role === "mechanic") {
+    const mechanic = await getMechanicByEmail(email);
+    if (!mechanic || String(mechanic.verificationStatus || "") !== "Approved") {
+      const error = new Error("Mechanic account is waiting for admin approval");
+      error.code = "MECHANIC_NOT_APPROVED";
+      throw error;
+    }
   }
 
   if (!isPasswordHash(storedPassword)) {
@@ -2298,6 +2336,10 @@ app.post("/api/login", async (req, res) => {
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
     });
   } catch (error) {
+    if (error.code === "MECHANIC_NOT_APPROVED") {
+      res.status(403).json({ ok: false, error: error.message });
+      return;
+    }
     res.status(500).json({ ok: false, error: "Login failed" });
   }
 });
@@ -2313,6 +2355,15 @@ app.get("/api/session", async (req, res) => {
     clearSessionCookie(res);
     res.status(401).json({ ok: false, error: "Session expired" });
     return;
+  }
+
+  if (String(freshUser.role || "").trim().toLowerCase() === "mechanic") {
+    const mechanic = await getMechanicByEmail(freshUser.email);
+    if (!mechanic || String(mechanic.verificationStatus || "") !== "Approved") {
+      clearSessionCookie(res);
+      res.status(403).json({ ok: false, error: "Mechanic account is waiting for admin approval" });
+      return;
+    }
   }
 
   setSessionCookie(res, freshUser);

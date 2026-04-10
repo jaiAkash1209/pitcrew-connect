@@ -628,6 +628,24 @@ function paginateRecords(records, stateKey) {
   };
 }
 
+function buildClientPage(records, stateKey, sortValue) {
+  const sorted = sortRecords(Array.isArray(records) ? records : [], sortValue);
+  const total = sorted.length;
+  const pageSize = ADMIN_PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(adminTableState[stateKey].page || 1, 1), totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  adminTableState[stateKey].page = currentPage;
+
+  return {
+    records: sorted.slice(startIndex, startIndex + pageSize),
+    total,
+    page: currentPage,
+    pageSize,
+    totalPages
+  };
+}
+
 function updatePageInfo(element, currentPage, totalPages) {
   if (!element) {
     return;
@@ -924,6 +942,81 @@ function renderAdminTables(bookingsPage, usersPage, mechanicsPage) {
   );
   updatePageInfo(mechanicPageInfo, Number(mechanicsPage?.page || 1), Number(mechanicsPage?.totalPages || 1));
   setPagerDisabled(mechanicPrevPageButton, mechanicNextPageButton, Number(mechanicsPage?.page || 1), Number(mechanicsPage?.totalPages || 1));
+}
+
+function hasAnyAdminRecords(data) {
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+
+  const pageGroups = [data.bookings?.records, data.mechanics?.records, data.users?.records];
+  const summaryGroups = [
+    data.summaries?.pendingMechanics,
+    data.summaries?.reviewedMechanics,
+    data.summaries?.mechanicAssignments,
+    data.summaries?.trackingRecords,
+    data.summaries?.matches
+  ];
+
+  return [...pageGroups, ...summaryGroups].some((group) => Array.isArray(group) && group.length);
+}
+
+async function loadAdminFallbackData() {
+  const [bookingsResponse, mechanicsResponse, usersResponse, trackingResponse, matchesResponse] = await Promise.all([
+    fetch("/api/bookings"),
+    fetch("/api/mechanics"),
+    fetch("/api/users", { headers: getAdminHeaders() }),
+    fetch("/api/tracking"),
+    fetch("/api/tracking/matches")
+  ]);
+
+  const responses = [bookingsResponse, mechanicsResponse, usersResponse, trackingResponse, matchesResponse];
+  if (responses.some((response) => !response.ok)) {
+    throw new Error("Fallback data fetch failed");
+  }
+
+  const [bookings, mechanics, users, trackers, matches] = await Promise.all(
+    responses.map((response) => response.json().catch(() => []))
+  );
+
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+  const safeMechanics = Array.isArray(mechanics) ? mechanics : [];
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeTrackers = Array.isArray(trackers) ? trackers : [];
+  const safeMatches = Array.isArray(matches) ? matches : [];
+  const mechanicAssignments = buildMechanicAssignments(safeMechanics, safeBookings);
+  const mechanicAssignmentCounts = safeBookings.reduce((counts, booking) => {
+    const key = String(booking.assignedMechanicId || "").trim();
+    if (!key) {
+      return counts;
+    }
+
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+
+  const mechanicRecords = safeMechanics.map((mechanic) => ({
+    ...mechanic,
+    assignedJobsCount: mechanicAssignmentCounts[String(mechanic.id || "").trim()] || 0
+  }));
+
+  return {
+    bookings: buildClientPage(getFilteredBookings(safeBookings), "bookings", bookingSortSelect?.value),
+    mechanics: buildClientPage(getFilteredMechanics(mechanicRecords), "mechanics", mechanicSortSelect?.value),
+    users: buildClientPage(getFilteredUsers(safeUsers), "users", userSortSelect?.value),
+    summaries: {
+      pendingMechanics: safeMechanics.filter((mechanic) => {
+        const status = String(mechanic.verificationStatus || "");
+        return status !== "Approved" && status !== "Rejected";
+      }),
+      reviewedMechanics: safeMechanics.filter((mechanic) => {
+        return Boolean(mechanic.reviewedAt) || (Array.isArray(mechanic.verificationHistory) && mechanic.verificationHistory.length);
+      }),
+      mechanicAssignments,
+      trackingRecords: safeTrackers,
+      matches: safeMatches
+    }
+  };
 }
 
 function fillUserEditForm(user) {
@@ -1783,21 +1876,23 @@ async function loadAdminData() {
       throw new Error(data.error || "Dashboard fetch failed");
     }
 
-    adminDataset = {
-      bookings: data.bookings?.records || [],
-      mechanics: data.mechanics?.records || [],
-      users: data.users?.records || [],
-      trackers: data.summaries?.trackingRecords || [],
-      pendingMechanics: data.summaries?.pendingMechanics || [],
-      reviewedMechanics: data.summaries?.reviewedMechanics || [],
-      mechanicAssignments: data.summaries?.mechanicAssignments || [],
-      matches: data.summaries?.matches || []
-    };
-    adminTableState.bookings.page = Number(data.bookings?.page || 1);
-    adminTableState.mechanics.page = Number(data.mechanics?.page || 1);
-    adminTableState.users.page = Number(data.users?.page || 1);
+    const resolvedData = hasAnyAdminRecords(data) ? data : await loadAdminFallbackData();
 
-    renderAdminTables(data.bookings, data.users, data.mechanics);
+    adminDataset = {
+      bookings: resolvedData.bookings?.records || [],
+      mechanics: resolvedData.mechanics?.records || [],
+      users: resolvedData.users?.records || [],
+      trackers: resolvedData.summaries?.trackingRecords || [],
+      pendingMechanics: resolvedData.summaries?.pendingMechanics || [],
+      reviewedMechanics: resolvedData.summaries?.reviewedMechanics || [],
+      mechanicAssignments: resolvedData.summaries?.mechanicAssignments || [],
+      matches: resolvedData.summaries?.matches || []
+    };
+    adminTableState.bookings.page = Number(resolvedData.bookings?.page || 1);
+    adminTableState.mechanics.page = Number(resolvedData.mechanics?.page || 1);
+    adminTableState.users.page = Number(resolvedData.users?.page || 1);
+
+    renderAdminTables(resolvedData.bookings, resolvedData.users, resolvedData.mechanics);
     renderPendingMechanicQueue(pendingMechanicsList, adminDataset.pendingMechanics);
     renderMechanicReviewHistoryTable(mechanicReviewHistoryList, adminDataset.reviewedMechanics);
     renderCards(mechanicAssignmentsList, adminDataset.mechanicAssignments, "mechanicAssignments");
@@ -1866,6 +1961,16 @@ async function requireDashboardAccess(requiredRole) {
       clearAuth();
       redirectToLogin();
       return;
+    }
+
+    if (requiredRole === "mechanic") {
+      const mechanicRecord = await getCurrentMechanicRecord();
+      if (!mechanicRecord || String(mechanicRecord.verificationStatus || "") !== "Approved") {
+        clearAuth();
+        await fetch("/api/logout", { method: "POST" }).catch(() => null);
+        redirectToLogin();
+        return;
+      }
     }
 
     if (dashboardWelcome) {
