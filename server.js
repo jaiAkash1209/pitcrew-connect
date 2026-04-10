@@ -482,6 +482,21 @@ function sortRecordsByField(records, sortValue = "createdAt-desc") {
   });
 }
 
+function buildMechanicAssignments(mechanics, bookings) {
+  return (Array.isArray(mechanics) ? mechanics : [])
+    .filter((mechanic) => String(mechanic.verificationStatus || "") === "Approved")
+    .map((mechanic) => {
+      const assignedBookings = (Array.isArray(bookings) ? bookings : []).filter((booking) => {
+        return String(booking.assignedMechanicId || "") === String(mechanic.id || "");
+      });
+
+      return {
+        ...mechanic,
+        assignedBookings
+      };
+    });
+}
+
 function mapTrackingRow(row) {
   return {
     trackerId: row.tracker_id || "",
