@@ -299,6 +299,28 @@ label,
   margin: 1.5rem 0 0;
 }
 
+.market-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1.2rem;
+}
+
+.market-pill-row.center {
+  justify-content: center;
+}
+
+.market-pill-row span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(31, 65, 99, 0.08);
+  color: var(--ink-blue);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .auth-entry-actions,
 .auth-switch-actions {
   display: flex;
@@ -472,11 +494,40 @@ label,
   gap: 1.25rem;
 }
 
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
 .service-card,
 .value-card,
 .mechanic-benefits article {
   padding: 1.5rem;
   border-radius: 1.4rem;
+}
+
+.coverage-card {
+  padding: 1.5rem;
+  border-radius: 1.4rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.7)),
+    radial-gradient(circle at top right, rgba(255, 107, 44, 0.12), transparent 38%);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.coverage-label {
+  display: inline-flex;
+  margin: 0 0 0.9rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .card-index {
@@ -1097,6 +1148,17 @@ body.theme-dark .data-table th {
   background: var(--table-head);
 }
 
+body.theme-dark .market-pill-row span {
+  background: rgba(220, 232, 245, 0.08);
+  color: #edf3f9;
+}
+
+body.theme-dark .coverage-card {
+  background:
+    linear-gradient(180deg, rgba(22, 29, 39, 0.96), rgba(22, 29, 39, 0.88)),
+    radial-gradient(circle at top right, rgba(255, 138, 87, 0.14), transparent 38%);
+}
+
 body.theme-dark .data-table tbody tr:nth-child(even) td {
   background: rgba(255, 255, 255, 0.018);
 }
@@ -1193,6 +1255,7 @@ body.theme-dark .eyebrow {
   .admin-grid,
   .dashboard-section-grid,
   .review-section-grid,
+  .coverage-grid,
   .role-grid,
   .footer-shell {
     grid-template-columns: 1fr;
