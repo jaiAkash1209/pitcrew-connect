@@ -829,6 +829,35 @@ textarea:focus {
   gap: 0.6rem;
 }
 
+.urgency-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 6rem;
+  padding: 0.42rem 0.78rem;
+  border-radius: 999px;
+  background: rgba(196, 40, 40, 0.12);
+  color: #b42318;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.urgency-immediate {
+  background: rgba(196, 40, 40, 0.14);
+  color: #b42318;
+}
+
+.urgency-today {
+  background: rgba(220, 38, 38, 0.11);
+  color: #c2410c;
+}
+
+.urgency-this-week {
+  background: rgba(234, 88, 12, 0.1);
+  color: #b45309;
+}
+
 .admin-card,
 .empty-state {
   padding: 1.4rem;
@@ -1167,6 +1196,26 @@ body.theme-dark textarea {
 body.theme-dark .admin-meta span,
 body.theme-dark .status-pill {
   background: rgba(216, 232, 248, 0.12);
+}
+
+body.theme-dark .urgency-badge {
+  background: rgba(255, 88, 88, 0.18);
+  color: #ffb4b4;
+}
+
+body.theme-dark .urgency-immediate {
+  background: rgba(255, 82, 82, 0.22);
+  color: #ffc1c1;
+}
+
+body.theme-dark .urgency-today {
+  background: rgba(255, 115, 115, 0.18);
+  color: #ffcfb3;
+}
+
+body.theme-dark .urgency-this-week {
+  background: rgba(255, 145, 77, 0.16);
+  color: #ffd59e;
 }
 
 body.theme-dark .data-table th {

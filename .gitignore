@@ -1,6 +1,8 @@
 .codex/
+.vscode/
 Microsoft VS Code/
 server.err.txt
 server.out.txt
 node_modules/
 npm-debug.log*
+*.mp4

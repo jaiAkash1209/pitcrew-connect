@@ -878,20 +878,25 @@ function renderAdminTables(bookingsPage, usersPage, mechanicsPage) {
   const mechanicRecords = Array.isArray(mechanicsPage?.records) ? mechanicsPage.records : [];
   renderTableBody(
     bookingsTableBody,
-    bookingRecords.map((booking) => `
-      <tr>
-        <td>${escapeHtml(booking.name || "-")}</td>
-        <td>${escapeHtml(booking.service || "-")}</td>
-        <td>${escapeHtml(booking.urgency || "-")}</td>
-        <td>${escapeHtml(booking.location || "-")}</td>
-        <td>${escapeHtml(booking.status || "-")}</td>
-        <td>${escapeHtml(booking.assignedMechanicName || "-")}</td>
-        <td>${escapeHtml(formatDateTime(booking.createdAt))}</td>
-        <td>
-          <button class="button button-secondary action-button" data-delete-resource="bookings" data-delete-id="${escapeHtml(booking.id || "")}">Delete</button>
-        </td>
-      </tr>
-    `),
+    bookingRecords.map((booking) => {
+      const urgencyValue = String(booking.urgency || "").trim();
+      const urgencyClass = urgencyValue ? `urgency-badge urgency-${getNormalizedSearchValue(urgencyValue).replace(/\s+/g, "-")}` : "urgency-badge";
+
+      return `
+        <tr>
+          <td>${escapeHtml(booking.name || "-")}</td>
+          <td>${escapeHtml(booking.service || "-")}</td>
+          <td><span class="${escapeHtml(urgencyClass)}">${escapeHtml(urgencyValue || "-")}</span></td>
+          <td>${escapeHtml(booking.location || "-")}</td>
+          <td>${escapeHtml(booking.status || "-")}</td>
+          <td>${escapeHtml(booking.assignedMechanicName || "-")}</td>
+          <td>${escapeHtml(formatDateTime(booking.createdAt))}</td>
+          <td>
+            <button class="button button-secondary action-button" data-delete-resource="bookings" data-delete-id="${escapeHtml(booking.id || "")}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }),
     "Bookings will appear here after users submit service requests.",
     8
   );
