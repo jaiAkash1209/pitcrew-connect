@@ -48,6 +48,8 @@ const passwordSaltRounds = 10;
 const sessionCookieName = "pitcrew_session";
 const sessionDurationMs = 1000 * 60 * 60 * 24 * 7;
 const sessionSecret = process.env.SESSION_SECRET || (isProduction ? "" : "pitcrew-dev-session-secret");
+const defaultAdminEmail = "admin@pitcrewconnect.com";
+const defaultAdminPassword = process.env.SEED_ADMIN_PASSWORD || "Akash@2007";
 const pool = useDatabase
   ? new Pool({
       connectionString: databaseUrl,
@@ -629,6 +631,7 @@ async function initializeDatabase() {
     ensureFile(mechanicsPath);
     ensureFile(usersPath);
     ensureFile(trackingPath);
+    await syncDefaultAdminPassword();
     return;
   }
 
@@ -714,11 +717,12 @@ async function initializeDatabase() {
 
   const existingUsers = await pool.query("SELECT COUNT(*)::int AS count FROM users");
   if (existingUsers.rows[0]?.count > 0) {
+    await syncDefaultAdminPassword();
     return;
   }
 
   const seedPasswords = {
-    admin: process.env.SEED_ADMIN_PASSWORD || (isProduction ? "" : "Akash@2007"),
+    admin: defaultAdminPassword,
     mechanic: process.env.SEED_MECHANIC_PASSWORD || (isProduction ? "" : "Mechanic123!"),
     user: process.env.SEED_USER_PASSWORD || (isProduction ? "" : "User123!")
   };
@@ -733,7 +737,7 @@ async function initializeDatabase() {
       id: "admin-1",
       createdAt: new Date().toISOString(),
       name: "Platform Admin",
-      email: "admin@pitcrewconnect.com",
+      email: defaultAdminEmail,
       password: await bcrypt.hash(seedPasswords.admin, passwordSaltRounds),
       role: "admin"
     },
@@ -808,6 +812,65 @@ async function initializeDatabase() {
       new Date().toISOString()
     ]
   );
+
+  await syncDefaultAdminPassword();
+}
+
+async function syncDefaultAdminPassword() {
+  if (!defaultAdminPassword) {
+    return;
+  }
+
+  if (!useDatabase) {
+    const users = readRecords(usersPath);
+    const adminIndex = users.findIndex((user) => {
+      return (
+        String(user.email || "").trim().toLowerCase() === defaultAdminEmail &&
+        String(user.role || "").trim().toLowerCase() === "admin"
+      );
+    });
+
+    if (adminIndex < 0) {
+      return;
+    }
+
+    const currentPassword = String(users[adminIndex].password || "");
+    const alreadyCurrent = isPasswordHash(currentPassword)
+      ? await bcrypt.compare(defaultAdminPassword, currentPassword)
+      : currentPassword === defaultAdminPassword;
+
+    if (alreadyCurrent) {
+      return;
+    }
+
+    users[adminIndex] = {
+      ...users[adminIndex],
+      password: await bcrypt.hash(defaultAdminPassword, passwordSaltRounds)
+    };
+    writeRecords(usersPath, users);
+    return;
+  }
+
+  const result = await pool.query(
+    "SELECT id, password FROM users WHERE email = $1 AND role = 'admin' LIMIT 1",
+    [defaultAdminEmail]
+  );
+
+  if (result.rowCount === 0) {
+    return;
+  }
+
+  const currentPassword = String(result.rows[0].password || "");
+  const alreadyCurrent = isPasswordHash(currentPassword)
+    ? await bcrypt.compare(defaultAdminPassword, currentPassword)
+    : currentPassword === defaultAdminPassword;
+
+  if (alreadyCurrent) {
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(defaultAdminPassword, passwordSaltRounds);
+  await pool.query("UPDATE users SET password = $2 WHERE id = $1", [result.rows[0].id, hashedPassword]);
 }
 
 async function getUsers() {
