@@ -4,6 +4,7 @@ const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
+const helmet = require("helmet");
 const { Pool } = require("pg");
 
 const app = express();
@@ -363,6 +364,89 @@ function sanitizeMechanicRecord(record) {
     aadhaarPhoto: hasStoredDocument(aadhaarValue) ? `/api/mechanics/${encodeURIComponent(mechanicId)}/documents/aadhaar` : "",
     shopPhoto: hasStoredDocument(shopValue) ? `/api/mechanics/${encodeURIComponent(mechanicId)}/documents/shop` : ""
   };
+}
+
+function sanitizePublicMechanicRecord(record) {
+  return {
+    id: record.id || "",
+    createdAt: record.createdAt || "",
+    name: record.name || "",
+    business: record.business || "",
+    experience: record.experience || "",
+    location: record.location || "",
+    service: record.service || "",
+    specialties: record.specialties || "",
+    verificationStatus: record.verificationStatus || ""
+  };
+}
+
+function filterBookingsForUser(bookings, authUser, mechanic) {
+  const role = String(authUser?.role || "").trim().toLowerCase();
+  const email = String(authUser?.email || "").trim().toLowerCase();
+
+  if (role === "admin") {
+    return bookings;
+  }
+
+  if (role === "user") {
+    return bookings.filter((booking) => String(booking.requesterEmail || "").trim().toLowerCase() === email);
+  }
+
+  if (role === "mechanic") {
+    const mechanicId = String(mechanic?.id || "").trim();
+    return bookings.filter((booking) => {
+      return (
+        !String(booking.assignedMechanicId || "").trim() ||
+        String(booking.assignedMechanicId || "").trim() === mechanicId ||
+        String(booking.assignedMechanicEmail || "").trim().toLowerCase() === email
+      );
+    });
+  }
+
+  return [];
+}
+
+function filterTrackingForUser(trackers, matches, authUser) {
+  const role = String(authUser?.role || "").trim().toLowerCase();
+  const email = String(authUser?.email || "").trim().toLowerCase();
+
+  if (role === "admin") {
+    return trackers;
+  }
+
+  const visibleTrackerIds = new Set();
+  trackers.forEach((tracker) => {
+    if (String(tracker.email || "").trim().toLowerCase() === email) {
+      visibleTrackerIds.add(String(tracker.trackerId || ""));
+    }
+  });
+
+  matches.forEach((match) => {
+    const userEmail = String(match.user?.email || "").trim().toLowerCase();
+    const mechanicEmail = String(match.mechanic?.email || "").trim().toLowerCase();
+    if (userEmail === email || mechanicEmail === email) {
+      visibleTrackerIds.add(String(match.user?.trackerId || ""));
+      visibleTrackerIds.add(String(match.mechanic?.trackerId || ""));
+    }
+  });
+
+  return trackers.filter((tracker) => visibleTrackerIds.has(String(tracker.trackerId || "")));
+}
+
+function filterMatchesForUser(matches, authUser) {
+  const role = String(authUser?.role || "").trim().toLowerCase();
+  const email = String(authUser?.email || "").trim().toLowerCase();
+
+  if (role === "admin") {
+    return matches;
+  }
+
+  return matches.filter((match) => {
+    return (
+      String(match.user?.email || "").trim().toLowerCase() === email ||
+      String(match.mechanic?.email || "").trim().toLowerCase() === email
+    );
+  });
 }
 
 function parseJsonArray(value) {
@@ -2297,9 +2381,11 @@ if (isProduction && !sessionSecret) {
   throw new Error("SESSION_SECRET is required in production");
 }
 
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
+
 app.use((req, res, next) => {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "geolocation=(self)");
   next();
@@ -2477,23 +2563,37 @@ app.post("/api/users/register", async (req, res) => {
   }
 });
 
-app.get("/api/tracking", async (_req, res) => {
+app.get("/api/tracking", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
   try {
-    res.json(await getTracking());
+    const trackers = await getTracking();
+    const matches = getTrackingMatchesFromRecords(trackers);
+    res.json(filterTrackingForUser(trackers, matches, req.authUser));
   } catch (error) {
     res.status(500).json([]);
   }
 });
 
-app.get("/api/tracking/matches", async (_req, res) => {
+app.get("/api/tracking/matches", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
   try {
-    res.json(await getTrackingMatches());
+    res.json(filterMatchesForUser(await getTrackingMatches(), req.authUser));
   } catch (error) {
     res.status(500).json([]);
   }
 });
 
 app.post("/api/tracking/update", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
   const trackerId = String(req.body?.trackerId || "").trim();
   const latitude = Number(req.body?.latitude);
   const longitude = Number(req.body?.longitude);
@@ -2506,9 +2606,9 @@ app.post("/api/tracking/update", async (req, res) => {
   try {
     const tracker = await upsertTracking({
       trackerId,
-      role: String(req.body?.role || ""),
-      name: String(req.body?.name || ""),
-      email: String(req.body?.email || ""),
+      role: String(req.authUser?.role || ""),
+      name: String(req.authUser?.name || ""),
+      email: String(req.authUser?.email || ""),
       latitude,
       longitude,
       accuracy: Number(req.body?.accuracy || 0)
@@ -2521,6 +2621,10 @@ app.post("/api/tracking/update", async (req, res) => {
 });
 
 app.get("/api/mechanics/:id/documents/:type", async (req, res) => {
+  if (!requireAdminRole(req, res)) {
+    return;
+  }
+
   const mechanicId = String(req.params?.id || "");
   const documentType = String(req.params?.type || "").trim().toLowerCase();
   if (!["aadhaar", "shop"].includes(documentType)) {
@@ -2562,17 +2666,33 @@ app.get("/api/mechanics/:id/documents/:type", async (req, res) => {
 });
 
 app.get("/api/bookings", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
   try {
     const statusFilter = String(req.query?.status || "").trim().toLowerCase();
-    res.json(await getBookings(statusFilter));
+    const bookings = await getBookings(statusFilter);
+    const mechanic = String(req.authUser?.role || "").trim().toLowerCase() === "mechanic"
+      ? await getMechanicByEmail(req.authUser.email)
+      : null;
+    res.json(filterBookingsForUser(bookings, req.authUser, mechanic));
   } catch (error) {
     res.status(500).json([]);
   }
 });
 
 app.post("/api/bookings", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
   try {
-    const booking = await createBookingRecord(req.body || {});
+    const payload = {
+      ...(req.body || {}),
+      requesterEmail: String(req.authUser?.email || "")
+    };
+    const booking = await createBookingRecord(payload);
     res.status(201).json({ ok: true, booking });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Booking save failed" });
@@ -2580,8 +2700,18 @@ app.post("/api/bookings", async (req, res) => {
 });
 
 app.patch("/api/bookings/:id/accept", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
   try {
-    const booking = await acceptBooking(String(req.params?.id || ""), String(req.body?.mechanicId || ""));
+    if (String(req.authUser?.role || "").trim().toLowerCase() !== "mechanic") {
+      res.status(403).json({ ok: false, error: "Mechanic access required" });
+      return;
+    }
+
+    const mechanic = await getMechanicByEmail(req.authUser.email);
+    const booking = await acceptBooking(String(req.params?.id || ""), String(mechanic?.id || ""));
 
     if (!booking) {
       res.status(404).json({ ok: false, error: "Booking or mechanic not found" });
@@ -2597,10 +2727,27 @@ app.patch("/api/bookings/:id/accept", async (req, res) => {
 });
 
 app.get("/api/mechanics", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
   try {
-    const statusFilter = String(req.query?.verificationStatus || "").trim().toLowerCase();
-    const records = await getMechanics(statusFilter);
-    res.json(records.map(sanitizeMechanicRecord));
+    const role = String(req.authUser?.role || "").trim().toLowerCase();
+    if (role === "admin") {
+      const statusFilter = String(req.query?.verificationStatus || "").trim().toLowerCase();
+      const records = await getMechanics(statusFilter);
+      res.json(records.map(sanitizeMechanicRecord));
+      return;
+    }
+
+    if (role === "mechanic") {
+      const mechanic = await getMechanicByEmail(req.authUser.email);
+      res.json(mechanic ? [sanitizeMechanicRecord(mechanic)] : []);
+      return;
+    }
+
+    const records = (await getMechanics("approved")).map(sanitizePublicMechanicRecord);
+    res.json(records);
   } catch (error) {
     res.status(500).json([]);
   }
