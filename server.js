@@ -718,7 +718,7 @@ async function initializeDatabase() {
   }
 
   const seedPasswords = {
-    admin: process.env.SEED_ADMIN_PASSWORD || (isProduction ? "" : "Admin123!"),
+    admin: process.env.SEED_ADMIN_PASSWORD || (isProduction ? "" : "Akash@2007"),
     mechanic: process.env.SEED_MECHANIC_PASSWORD || (isProduction ? "" : "Mechanic123!"),
     user: process.env.SEED_USER_PASSWORD || (isProduction ? "" : "User123!")
   };
