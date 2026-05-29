@@ -26,6 +26,13 @@ const publicFiles = new Set([
   "styles.css",
   "script.js"
 ]);
+const protectedPageRoles = new Map([
+  ["admin.html", "admin"],
+  ["mechanic-review.html", "admin"],
+  ["mechanic.html", "mechanic"],
+  ["tracking.html", "auth"],
+  ["user.html", "user"]
+]);
 const defaultLocalDataDir = process.platform === "win32"
   ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "PitCrewConnect", "data")
   : path.join(os.homedir(), ".pitcrew-connect", "data");
@@ -2263,6 +2270,50 @@ function requireAdminRole(req, res) {
   return true;
 }
 
+function getDashboardPathForRole(role) {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole === "admin") {
+    return "/admin.html";
+  }
+
+  if (normalizedRole === "mechanic") {
+    return "/mechanic.html";
+  }
+
+  if (normalizedRole === "user") {
+    return "/user.html";
+  }
+
+  return "/login.html";
+}
+
+function canAccessProtectedPage(requiredRole, authUser) {
+  if (!authUser) {
+    return false;
+  }
+
+  if (requiredRole === "auth") {
+    return true;
+  }
+
+  return String(authUser.role || "").trim().toLowerCase() === requiredRole;
+}
+
+function redirectProtectedPage(req, res, requiredRole) {
+  if (canAccessProtectedPage(requiredRole, req.authUser)) {
+    return false;
+  }
+
+  res.redirect(req.authUser ? getDashboardPathForRole(req.authUser.role) : "/login.html");
+  return true;
+}
+
+function getSiteOrigin(req) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const protocol = forwardedProto || req.protocol || "https";
+  return `${protocol}://${req.get("host")}`;
+}
+
 async function deleteBookingRecord(bookingId) {
   if (!useDatabase) {
     const bookings = readRecords(bookingsPath);
@@ -2483,10 +2534,47 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: "4mb" }));
 
+app.get("/robots.txt", (req, res) => {
+  const origin = getSiteOrigin(req);
+  res.type("text/plain").send([
+    "User-agent: *",
+    "Allow: /",
+    `Sitemap: ${origin}/sitemap.xml`,
+    ""
+  ].join("\n"));
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const origin = getSiteOrigin(req);
+  const pages = [
+    "/",
+    "/services.html",
+    "/about.html",
+    "/contact.html",
+    "/booking.html",
+    "/login.html",
+    "/register.html"
+  ];
+  const urls = pages
+    .map((page) => `  <url><loc>${origin}${page}</loc></url>`)
+    .join("\n");
+
+  res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>
+`);
+});
+
 app.get("/:file", (req, res, next) => {
   const fileName = String(req.params?.file || "");
   if (!publicFiles.has(fileName)) {
     next();
+    return;
+  }
+
+  const requiredRole = protectedPageRoles.get(fileName);
+  if (requiredRole && redirectProtectedPage(req, res, requiredRole)) {
     return;
   }
 
@@ -2786,16 +2874,19 @@ app.get("/api/bookings", async (req, res) => {
 });
 
 app.post("/api/bookings", async (req, res) => {
-  if (!requireAuthenticatedUser(req, res)) {
+  const payload = req.body || {};
+  const requiredFields = ["name", "phone", "vehicle", "service", "issue"];
+  const missingField = requiredFields.find((field) => !String(payload[field] || "").trim());
+  if (missingField) {
+    res.status(400).json({ ok: false, error: "Name, phone, vehicle, service, and issue are required" });
     return;
   }
 
   try {
-    const payload = {
-      ...(req.body || {}),
+    const booking = await createBookingRecord({
+      ...payload,
       requesterEmail: String(req.authUser?.email || "")
-    };
-    const booking = await createBookingRecord(payload);
+    });
     res.status(201).json({ ok: true, booking });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Booking save failed" });
