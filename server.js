@@ -2948,8 +2948,27 @@ app.get("/api/mechanics", async (req, res) => {
 });
 
 app.post("/api/mechanics", async (req, res) => {
+  if (!requireAuthenticatedUser(req, res)) {
+    return;
+  }
+
+  const role = String(req.authUser?.role || "").trim().toLowerCase();
+  if (role !== "mechanic" && role !== "admin") {
+    res.status(403).json({ ok: false, error: "Mechanic access required" });
+    return;
+  }
+
   try {
-    const mechanic = await upsertMechanic(req.body || {});
+    const payload = {
+      ...(req.body || {})
+    };
+
+    if (role === "mechanic") {
+      payload.name = req.authUser.name || payload.name || "";
+      payload.email = req.authUser.email || "";
+    }
+
+    const mechanic = await upsertMechanic(payload);
     res.status(201).json({ ok: true, mechanic: sanitizeMechanicRecord(mechanic) });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Mechanic save failed" });
