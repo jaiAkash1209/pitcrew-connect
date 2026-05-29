@@ -2758,6 +2758,7 @@ if (forgotPasswordForm && forgotPasswordMessage) {
         body: JSON.stringify({
           email: String(payload.email || "").trim(),
           role: String(payload.role || "").trim(),
+          currentPassword: String(payload.currentPassword || ""),
           newPassword: nextPassword
         })
       });

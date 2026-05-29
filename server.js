@@ -9,6 +9,23 @@ const { Pool } = require("pg");
 
 const app = express();
 const port = process.env.PORT || 8080;
+const publicFiles = new Set([
+  "about.html",
+  "admin.html",
+  "booking.html",
+  "contact.html",
+  "forgot-password.html",
+  "index.html",
+  "login.html",
+  "mechanic-review.html",
+  "mechanic.html",
+  "register.html",
+  "services.html",
+  "tracking.html",
+  "user.html",
+  "styles.css",
+  "script.js"
+]);
 const defaultLocalDataDir = process.platform === "win32"
   ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "PitCrewConnect", "data")
   : path.join(os.homedir(), ".pitcrew-connect", "data");
@@ -693,13 +710,24 @@ async function initializeDatabase() {
     return;
   }
 
+  const seedPasswords = {
+    admin: process.env.SEED_ADMIN_PASSWORD || (isProduction ? "" : "Admin123!"),
+    mechanic: process.env.SEED_MECHANIC_PASSWORD || (isProduction ? "" : "Mechanic123!"),
+    user: process.env.SEED_USER_PASSWORD || (isProduction ? "" : "User123!")
+  };
+
+  if (!seedPasswords.admin || !seedPasswords.mechanic || !seedPasswords.user) {
+    console.warn("Skipping seed accounts because seed passwords are not configured.");
+    return;
+  }
+
   const seedUsers = [
     {
       id: "admin-1",
       createdAt: new Date().toISOString(),
       name: "Platform Admin",
       email: "admin@pitcrewconnect.com",
-      password: await bcrypt.hash("Admin123!", passwordSaltRounds),
+      password: await bcrypt.hash(seedPasswords.admin, passwordSaltRounds),
       role: "admin"
     },
     {
@@ -707,7 +735,7 @@ async function initializeDatabase() {
       createdAt: new Date().toISOString(),
       name: "Service Partner",
       email: "mechanic@pitcrewconnect.com",
-      password: await bcrypt.hash("Mechanic123!", passwordSaltRounds),
+      password: await bcrypt.hash(seedPasswords.mechanic, passwordSaltRounds),
       role: "mechanic"
     },
     {
@@ -715,7 +743,7 @@ async function initializeDatabase() {
       createdAt: new Date().toISOString(),
       name: "Customer Account",
       email: "user@pitcrewconnect.com",
-      password: await bcrypt.hash("User123!", passwordSaltRounds),
+      password: await bcrypt.hash(seedPasswords.user, passwordSaltRounds),
       role: "user"
     }
   ];
@@ -1342,6 +1370,48 @@ async function resetUserPassword(email, role, newPassword) {
   );
 
   return result.rowCount > 0;
+}
+
+async function verifyUserPassword(email, role, password) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  const candidatePassword = String(password || "");
+
+  if (!normalizedEmail || !normalizedRole || !candidatePassword) {
+    return false;
+  }
+
+  if (!useDatabase) {
+    const user = readRecords(usersPath).find((item) => {
+      return (
+        String(item.email || "").trim().toLowerCase() === normalizedEmail &&
+        String(item.role || "").trim().toLowerCase() === normalizedRole
+      );
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    const storedPassword = String(user.password || "");
+    return isPasswordHash(storedPassword)
+      ? bcrypt.compare(candidatePassword, storedPassword)
+      : storedPassword === candidatePassword;
+  }
+
+  const result = await pool.query(
+    "SELECT password FROM users WHERE email = $1 AND role = $2 LIMIT 1",
+    [normalizedEmail, normalizedRole]
+  );
+
+  if (result.rowCount === 0) {
+    return false;
+  }
+
+  const storedPassword = String(result.rows[0].password || "");
+  return isPasswordHash(storedPassword)
+    ? bcrypt.compare(candidatePassword, storedPassword)
+    : storedPassword === candidatePassword;
 }
 
 async function findUserById(userId) {
@@ -2399,9 +2469,18 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: "4mb" }));
-app.use(express.static(__dirname, {
-  maxAge: isProduction ? "1d" : 0
-}));
+
+app.get("/:file", (req, res, next) => {
+  const fileName = String(req.params?.file || "");
+  if (!publicFiles.has(fileName)) {
+    next();
+    return;
+  }
+
+  res.sendFile(path.join(__dirname, fileName), {
+    maxAge: isProduction ? "1d" : 0
+  });
+});
 
 app.post("/api/login", async (req, res) => {
   const email = String(req.body?.email || "").trim().toLowerCase();
@@ -2467,6 +2546,7 @@ app.post("/api/logout", (req, res) => {
 app.post("/api/password/reset", async (req, res) => {
   const email = String(req.body?.email || "").trim().toLowerCase();
   const role = String(req.body?.role || "").trim().toLowerCase();
+  const currentPassword = String(req.body?.currentPassword || "");
   const newPassword = String(req.body?.newPassword || "");
 
   if (!email || !role || !newPassword) {
@@ -2480,6 +2560,16 @@ app.post("/api/password/reset", async (req, res) => {
   }
 
   try {
+    const authRole = String(req.authUser?.role || "").trim().toLowerCase();
+    const isAdminReset = authRole === "admin";
+
+    if (!isAdminReset) {
+      if (!(await verifyUserPassword(email, role, currentPassword))) {
+        res.status(403).json({ ok: false, error: "Current password is required" });
+        return;
+      }
+    }
+
     const updated = await resetUserPassword(email, role, newPassword);
     if (!updated) {
       res.status(404).json({ ok: false, error: "Account not found" });

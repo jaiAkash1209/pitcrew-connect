@@ -3,21 +3,21 @@
     "id": "admin-1",
     "name": "Platform Admin",
     "email": "admin@pitcrewconnect.com",
-    "password": "Admin123!",
+    "password": "$2a$10$41MvvgnQZ0m6qw214aifSerFQCEbFkoWYVZzSjpCgN/2P/Hu.obO2",
     "role": "admin"
   },
   {
     "id": "mechanic-1",
     "name": "Service Partner",
     "email": "mechanic@pitcrewconnect.com",
-    "password": "Mechanic123!",
+    "password": "$2a$10$V8YoJAlukoh3br.z6HZYW.RxvvWD8F2qBtay/JuTSHV/1r0S2Deo.",
     "role": "mechanic"
   },
   {
     "id": "user-1",
     "name": "Customer Account",
     "email": "user@pitcrewconnect.com",
-    "password": "User123!",
+    "password": "$2a$10$NFtwaqLvvu8Qc7uuhmuX5.VV2Zv.su.ArkqVRE23qK/D3sNgiFeia",
     "role": "user"
   }
 ]
